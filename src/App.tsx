@@ -420,11 +420,20 @@ export default function App() {
           h = Math.round(h * ratio);
         }
 
+        // Center the uploaded image on the user's current viewport
+        const safeZoom = Number.isFinite(canvasZoom) && canvasZoom > 0 ? canvasZoom : 1;
+        const safePanX = Number.isFinite(canvasPan.x) ? canvasPan.x : 100;
+        const safePanY = Number.isFinite(canvasPan.y) ? canvasPan.y : 100;
+        const viewportW = window.innerWidth;
+        const viewportH = window.innerHeight;
+        const centerWorldX = (viewportW / 2) / safeZoom - safePanX;
+        const centerWorldY = (viewportH / 2) / safeZoom - safePanY;
+
         const newImgObj: BoardObject = {
           id: `img_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
           type: 'image',
-          x: 200,
-          y: 200,
+          x: Math.round(centerWorldX - w / 2),
+          y: Math.round(centerWorldY - h / 2),
           width: w,
           height: h,
           src,
@@ -437,7 +446,13 @@ export default function App() {
         setSelectedObjectId(newImgObj.id);
         addToast(`Image "${file.name}" uploaded!`, 'success');
       };
+      img.onerror = () => {
+        addToast('Failed to decode image file.', 'error');
+      };
       img.src = src;
+    };
+    reader.onerror = () => {
+      addToast('Failed to read image file.', 'error');
     };
     reader.readAsDataURL(file);
     e.target.value = '';
@@ -450,13 +465,21 @@ export default function App() {
 
     addToast(`Rendering PDF "${file.name}" pages...`, 'info');
     try {
+      const safeZoom = Number.isFinite(canvasZoom) && canvasZoom > 0 ? canvasZoom : 1;
+      const safePanX = Number.isFinite(canvasPan.x) ? canvasPan.x : 100;
+      const safePanY = Number.isFinite(canvasPan.y) ? canvasPan.y : 100;
+      const viewportW = window.innerWidth;
+      const viewportH = window.innerHeight;
+      const centerWorldX = (viewportW / 2) / safeZoom - safePanX;
+      const centerWorldY = (viewportH / 2) / safeZoom - safePanY;
+
       const pages = await renderPDFToImages(file, 8);
       pages.forEach((page, idx) => {
         const pageObj: BoardObject = {
           id: `pdf_${Date.now()}_p${page.pageNumber}`,
           type: 'image',
-          x: 180 + idx * 340,
-          y: 220,
+          x: Math.round(centerWorldX - 160 + idx * 340),
+          y: Math.round(centerWorldY - 200),
           width: 320,
           height: Math.round(320 * (page.height / page.width)),
           src: page.dataUrl,

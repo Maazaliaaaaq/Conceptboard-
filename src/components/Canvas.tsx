@@ -59,6 +59,40 @@ export const Canvas = forwardRef<CanvasRefHandle, CanvasProps>(({
   // Pan & Zoom state
   const [pan, setPan] = useState<{ x: number; y: number }>({ x: 100, y: 100 });
   const [zoom, setZoom] = useState<number>(1);
+  const panRef = useRef<{ x: number; y: number }>({ x: 100, y: 100 });
+  const zoomRef = useRef<number>(1);
+
+  useEffect(() => {
+    panRef.current = pan;
+  }, [pan]);
+
+  useEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
+
+  // Safe pan and zoom updater ensuring finite values
+  const updatePanAndZoom = useCallback((newPan: { x: number; y: number }, newZoom: number) => {
+    const safeZoom = Number.isFinite(newZoom) && newZoom > 0 ? Math.min(Math.max(newZoom, 0.15), 5.0) : 1;
+    const safePanX = Number.isFinite(newPan.x) ? newPan.x : 100;
+    const safePanY = Number.isFinite(newPan.y) ? newPan.y : 100;
+    const safePan = { x: safePanX, y: safePanY };
+
+    panRef.current = safePan;
+    zoomRef.current = safeZoom;
+    setPan(safePan);
+    setZoom(safeZoom);
+  }, []);
+
+  // Multi-touch & Pinch-to-Zoom Tracking
+  const activePointers = useRef<Map<number, Point>>(new Map());
+  const pinchStartRef = useRef<{
+    dist: number;
+    centerScreen: Point;
+    centerWorld: Point;
+    startZoom: number;
+    startPan: Point;
+  } | null>(null);
+  const isPinchActive = useRef(false);
 
   // On-screen cursor position
   const [cursorPos, setCursorPos] = useState<Point | null>(null);
@@ -117,9 +151,12 @@ export const Canvas = forwardRef<CanvasRefHandle, CanvasProps>(({
   // Convert Screen to World coordinates
   const screenToWorld = useCallback(
     (sx: number, sy: number): Point => {
+      const z = Number.isFinite(zoom) && zoom > 0 ? zoom : 1;
+      const px = Number.isFinite(pan.x) ? pan.x : 100;
+      const py = Number.isFinite(pan.y) ? pan.y : 100;
       return {
-        x: sx / zoom - pan.x,
-        y: sy / zoom - pan.y,
+        x: sx / z - px,
+        y: sy / z - py,
       };
     },
     [pan, zoom]
@@ -128,9 +165,12 @@ export const Canvas = forwardRef<CanvasRefHandle, CanvasProps>(({
   // Convert World to Screen coordinates
   const worldToScreen = useCallback(
     (wx: number, wy: number): Point => {
+      const z = Number.isFinite(zoom) && zoom > 0 ? zoom : 1;
+      const px = Number.isFinite(pan.x) ? pan.x : 100;
+      const py = Number.isFinite(pan.y) ? pan.y : 100;
       return {
-        x: (wx + pan.x) * zoom,
-        y: (wy + pan.y) * zoom,
+        x: (wx + px) * z,
+        y: (wy + py) * z,
       };
     },
     [pan, zoom]
@@ -383,14 +423,20 @@ export const Canvas = forwardRef<CanvasRefHandle, CanvasProps>(({
     const w = (obj.width || 200) * zoom;
     const h = (obj.height || 200) * zoom;
 
+    if (!Number.isFinite(screen.x) || !Number.isFinite(screen.y) || !Number.isFinite(w) || !Number.isFinite(h)) {
+      return;
+    }
+
     let img = imageCache.current.get(obj.src);
     if (!img) {
       img = new Image();
-      img.src = obj.src;
       img.onload = () => {
-        // Redraw when loaded
         requestAnimationFrame(() => render());
       };
+      img.onerror = () => {
+        requestAnimationFrame(() => render());
+      };
+      img.src = obj.src;
       imageCache.current.set(obj.src, img);
     }
 
@@ -401,10 +447,19 @@ export const Canvas = forwardRef<CanvasRefHandle, CanvasProps>(({
       ctx.shadowBlur = 6 * zoom;
       ctx.drawImage(img, screen.x, screen.y, w, h);
     } else {
-      ctx.fillStyle = '#f1f5f9';
+      // Clear visible placeholder while image loads
+      ctx.fillStyle = '#f8fafc';
       ctx.fillRect(screen.x, screen.y, w, h);
-      ctx.strokeStyle = '#cbd5e1';
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([5, 5]);
       ctx.strokeRect(screen.x, screen.y, w, h);
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#64748b';
+      ctx.font = 'bold 12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🖼️ Loading image...', screen.x + w / 2, screen.y + h / 2);
     }
 
     if (isSelected) {
@@ -779,9 +834,47 @@ export const Canvas = forwardRef<CanvasRefHandle, CanvasProps>(({
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    canvas.setPointerCapture(e.pointerId);
 
     const pos = getCanvasPos(e.clientX, e.clientY);
+    activePointers.current.set(e.pointerId, { x: pos.x, y: pos.y });
+
+    // Multi-touch detection (2 or more fingers: Pinch-to-Zoom & Two-Finger Pan)
+    if (activePointers.current.size >= 2) {
+      isPinchActive.current = true;
+      setIsPointerDown(false);
+      setCurrentStroke([]);
+      setShapePreview(null);
+      setIsDraggingObject(false);
+
+      const pts = Array.from(activePointers.current.values());
+      const p1 = pts[0];
+      const p2 = pts[1];
+      const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+      const centerScreen = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+      const currentZoom = zoomRef.current;
+      const currentPan = panRef.current;
+      const centerWorld = {
+        x: centerScreen.x / currentZoom - currentPan.x,
+        y: centerScreen.y / currentZoom - currentPan.y,
+      };
+
+      pinchStartRef.current = {
+        dist: Math.max(dist, 10),
+        centerScreen,
+        centerWorld,
+        startZoom: currentZoom,
+        startPan: { ...currentPan },
+      };
+      return;
+    }
+
+    try {
+      canvas.setPointerCapture(e.pointerId);
+    } catch {
+      // Ignore pointer capture error
+    }
+
+    isPinchActive.current = false;
     const worldPt = screenToWorld(pos.x, pos.y);
     setIsPointerDown(true);
     setDragStartPoint({ x: pos.x, y: pos.y });
@@ -882,6 +975,31 @@ export const Canvas = forwardRef<CanvasRefHandle, CanvasProps>(({
     const pos = getCanvasPos(e.clientX, e.clientY);
     setCursorPos({ x: pos.x, y: pos.y });
     setIsHoveringCanvas(true);
+
+    if (activePointers.current.has(e.pointerId)) {
+      activePointers.current.set(e.pointerId, { x: pos.x, y: pos.y });
+    }
+
+    // Two-finger pinch zoom & two-finger pan
+    if (activePointers.current.size >= 2 && pinchStartRef.current) {
+      const pts = Array.from(activePointers.current.values());
+      const p1 = pts[0];
+      const p2 = pts[1];
+      const currentDist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+      const currentCenterScreen = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+
+      const scale = currentDist / pinchStartRef.current.dist;
+      const targetZoom = Math.min(Math.max(pinchStartRef.current.startZoom * scale, 0.15), 5.0);
+
+      const targetPanX = currentCenterScreen.x / targetZoom - pinchStartRef.current.centerWorld.x;
+      const targetPanY = currentCenterScreen.y / targetZoom - pinchStartRef.current.centerWorld.y;
+
+      updatePanAndZoom({ x: targetPanX, y: targetPanY }, targetZoom);
+      return;
+    }
+
+    if (isPinchActive.current) return;
+
     const worldPt = screenToWorld(pos.x, pos.y);
 
     // Broadcast cursor position every ~40ms to optimize bandwidth
@@ -898,7 +1016,7 @@ export const Canvas = forwardRef<CanvasRefHandle, CanvasProps>(({
       if (dragStartPoint) {
         const dx = (pos.x - dragStartPoint.x) / zoom;
         const dy = (pos.y - dragStartPoint.y) / zoom;
-        setPan((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+        updatePanAndZoom({ x: pan.x + dx, y: pan.y + dy }, zoom);
         setDragStartPoint({ x: pos.x, y: pos.y });
       }
       return;
@@ -943,8 +1061,33 @@ export const Canvas = forwardRef<CanvasRefHandle, CanvasProps>(({
     }
   };
 
-  // Pointer Up (Latency optimization: commits final object to Firebase)
+  // Pointer Up (commits final stroke/shape when lifted)
   const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    activePointers.current.delete(e.pointerId);
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      // Ignore
+    }
+
+    if (activePointers.current.size < 2) {
+      pinchStartRef.current = null;
+    }
+
+    if (activePointers.current.size === 0) {
+      if (isPinchActive.current) {
+        isPinchActive.current = false;
+        setIsPointerDown(false);
+        setIsDraggingObject(false);
+        setCurrentStroke([]);
+        setShapePreview(null);
+        return;
+      }
+    } else {
+      // Still have a finger down
+      return;
+    }
+
     setIsPointerDown(false);
     setIsDraggingObject(false);
 
@@ -1022,54 +1165,61 @@ export const Canvas = forwardRef<CanvasRefHandle, CanvasProps>(({
   // Zoom with mouse wheel or pinch
   const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
     e.preventDefault();
-    const zoomFactor = e.deltaY < 0 ? 1.08 : 0.92;
-    const newZoom = Math.min(Math.max(zoom * zoomFactor, 0.15), 4.0);
-
-    // Zoom centered around mouse pointer relative to canvas
     const pos = getCanvasPos(e.clientX, e.clientY);
-    const mouseX = pos.x;
-    const mouseY = pos.y;
+    const currentZoom = zoomRef.current;
+    const currentPan = panRef.current;
 
-    const wx = mouseX / zoom - pan.x;
-    const wy = mouseY / zoom - pan.y;
+    // Zoom on trackpad pinch gesture or Ctrl/Cmd + wheel
+    if (e.ctrlKey || e.metaKey) {
+      const zoomFactor = Math.exp(-e.deltaY * 0.01);
+      const newZoom = Math.min(Math.max(currentZoom * zoomFactor, 0.15), 5.0);
 
-    const newPanX = mouseX / newZoom - wx;
-    const newPanY = mouseY / newZoom - wy;
+      const wx = pos.x / currentZoom - currentPan.x;
+      const wy = pos.y / currentZoom - currentPan.y;
 
-    setZoom(newZoom);
-    setPan({ x: newPanX, y: newPanY });
+      const newPanX = pos.x / newZoom - wx;
+      const newPanY = pos.y / newZoom - wy;
+
+      updatePanAndZoom({ x: newPanX, y: newPanY }, newZoom);
+      return;
+    }
+
+    // Two-finger trackpad scroll or mouse pan
+    const dx = -e.deltaX / currentZoom;
+    const dy = -e.deltaY / currentZoom;
+    const newPanX = currentPan.x + dx;
+    const newPanY = currentPan.y + dy;
+
+    updatePanAndZoom({ x: newPanX, y: newPanY }, currentZoom);
   };
 
   // Zoom centered around current viewport center
   const zoomAtCenter = useCallback((factor: number) => {
     const container = containerRef.current;
+    const currentZoom = zoomRef.current;
+    const currentPan = panRef.current;
     const width = container ? container.clientWidth : window.innerWidth;
     const height = container ? container.clientHeight : window.innerHeight;
     const centerX = width / 2;
     const centerY = height / 2;
 
-    setZoom((prevZoom) => {
-      const newZoom = Math.min(Math.max(prevZoom * factor, 0.15), 4.0);
-      setPan((prevPan) => {
-        const wx = centerX / prevZoom - prevPan.x;
-        const wy = centerY / prevZoom - prevPan.y;
-        return {
-          x: centerX / newZoom - wx,
-          y: centerY / newZoom - wy,
-        };
-      });
-      return newZoom;
-    });
-  }, []);
+    const newZoom = Math.min(Math.max(currentZoom * factor, 0.15), 5.0);
+    const wx = centerX / currentZoom - currentPan.x;
+    const wy = centerY / currentZoom - currentPan.y;
+
+    const newPanX = centerX / newZoom - wx;
+    const newPanY = centerY / newZoom - wy;
+
+    updatePanAndZoom({ x: newPanX, y: newPanY }, newZoom);
+  }, [updatePanAndZoom]);
 
   const handleZoomIn = useCallback(() => zoomAtCenter(1.2), [zoomAtCenter]);
   const handleZoomOut = useCallback(() => zoomAtCenter(1 / 1.2), [zoomAtCenter]);
 
   // Reset zoom & pan
   const handleResetZoom = useCallback(() => {
-    setZoom(1);
-    setPan({ x: 100, y: 100 });
-  }, []);
+    updatePanAndZoom({ x: 100, y: 100 }, 1);
+  }, [updatePanAndZoom]);
 
   // Fit view to all objects
   const handleFitToContent = useCallback(() => {
@@ -1085,25 +1235,40 @@ export const Canvas = forwardRef<CanvasRefHandle, CanvasProps>(({
     let maxY = -Infinity;
 
     list.forEach((obj) => {
+      if (obj.type === 'pen' || obj.type === 'highlighter') {
+        if (obj.points && obj.points.length > 0) {
+          obj.points.forEach((p) => {
+            minX = Math.min(minX, p.x);
+            minY = Math.min(minY, p.y);
+            maxX = Math.max(maxX, p.x);
+            maxY = Math.max(maxY, p.y);
+          });
+          return;
+        }
+      }
       minX = Math.min(minX, obj.x);
       minY = Math.min(minY, obj.y);
       maxX = Math.max(maxX, obj.x + (obj.width || 100));
       maxY = Math.max(maxY, obj.y + (obj.height || 100));
     });
 
-    const contentW = maxX - minX + 200;
-    const contentH = maxY - minY + 200;
+    if (!Number.isFinite(minX) || !Number.isFinite(maxX)) {
+      handleResetZoom();
+      return;
+    }
+
+    const contentW = Math.max(maxX - minX + 200, 200);
+    const contentH = Math.max(maxY - minY + 200, 200);
 
     const scaleX = window.innerWidth / contentW;
     const scaleY = window.innerHeight / contentH;
     const fitZoom = Math.min(Math.max(Math.min(scaleX, scaleY), 0.2), 1.5);
 
-    setZoom(fitZoom);
-    setPan({
-      x: window.innerWidth / 2 / fitZoom - (minX + maxX) / 2,
-      y: window.innerHeight / 2 / fitZoom - (minY + maxY) / 2,
-    });
-  }, [objects, handleResetZoom]);
+    const fitPanX = window.innerWidth / 2 / fitZoom - (minX + maxX) / 2;
+    const fitPanY = window.innerHeight / 2 / fitZoom - (minY + maxY) / 2;
+
+    updatePanAndZoom({ x: fitPanX, y: fitPanY }, fitZoom);
+  }, [objects, handleResetZoom, updatePanAndZoom]);
 
   // Expose imperative handle for parent controls (TopBar / CreativeToolbar)
   useImperativeHandle(
@@ -1179,8 +1344,16 @@ export const Canvas = forwardRef<CanvasRefHandle, CanvasProps>(({
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
         onPointerEnter={() => setIsHoveringCanvas(true)}
-        onPointerLeave={() => {
+        onPointerLeave={(e) => {
+          activePointers.current.delete(e.pointerId);
+          if (activePointers.current.size < 2) {
+            pinchStartRef.current = null;
+          }
+          if (activePointers.current.size === 0) {
+            isPinchActive.current = false;
+          }
           setIsHoveringCanvas(false);
           setCursorPos(null);
         }}
