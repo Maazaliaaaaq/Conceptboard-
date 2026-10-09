@@ -7,6 +7,7 @@ import { FirebaseSetupModal } from './components/FirebaseSetupModal';
 import { UserModal } from './components/UserModal';
 import { ToastContainer, ToastMessage } from './components/Toast';
 import { CreativeToolbar } from './components/CreativeToolbar';
+import { AlertTriangle, ExternalLink, X } from 'lucide-react';
 import {
   BoardObject,
   ToolType,
@@ -24,6 +25,8 @@ import {
   subscribeToRoomConfig,
   setRoomPermissionMode,
   isFirebaseConnected,
+  isFirestoreQuotaExceeded,
+  subscribeToQuotaExceeded,
 } from './services/firebaseService';
 import { renderPDFToImages } from './utils/pdfRenderer';
 import { getStandaloneHtmlContent } from './utils/singleFileTemplate';
@@ -113,6 +116,17 @@ export default function App() {
   const [isFirebaseOpen, setIsFirebaseOpen] = useState(false);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
 
+  // Firestore Quota limit state
+  const [quotaExceeded, setQuotaExceeded] = useState(isFirestoreQuotaExceeded());
+  const [dismissedQuotaBanner, setDismissedQuotaBanner] = useState(false);
+
+  useEffect(() => {
+    const unsub = subscribeToQuotaExceeded((exceeded) => {
+      setQuotaExceeded(exceeded);
+    });
+    return () => unsub();
+  }, []);
+
   // Canvas Pan & Zoom state kept in sync for live cursor projection
   const [canvasPan, setCanvasPan] = useState<Point>({ x: 100, y: 100 });
   const [canvasZoom, setCanvasZoom] = useState<number>(1);
@@ -129,6 +143,12 @@ export default function App() {
 
   const handleResetZoom = useCallback(() => {
     canvasRef.current?.resetZoom();
+  }, []);
+
+  // View change handler with equality check to prevent infinite re-render loops
+  const handleViewChange = useCallback((newPan: Point, newZoom: number) => {
+    setCanvasPan((prev) => (prev.x === newPan.x && prev.y === newPan.y ? prev : newPan));
+    setCanvasZoom((prev) => (prev === newZoom ? prev : newZoom));
   }, []);
 
   // High-visibility on-screen cursor state
@@ -208,7 +228,7 @@ export default function App() {
   // Subscribe to Objects from Firebase / Local channel
   useEffect(() => {
     const unsubscribe = subscribeToBoardObjects(roomId, (remoteObjects) => {
-      // Filter out and permanently clean up any legacy welcome or app template stickies
+      // Filter out any legacy welcome or app template stickies
       const cleaned: Record<string, BoardObject> = {};
       Object.entries(remoteObjects).forEach(([id, obj]) => {
         const isWelcomeOrAppNote =
@@ -219,10 +239,7 @@ export default function App() {
               obj.text.includes('Collaboration:') ||
               obj.text.includes('Lecture Materials:')));
 
-        if (isWelcomeOrAppNote) {
-          // Delete from Firebase/channel permanently so it does not remain on screen
-          deleteBoardObject(roomId, id).catch(() => {});
-        } else {
+        if (!isWelcomeOrAppNote) {
           cleaned[id] = obj;
         }
       });
@@ -320,19 +337,22 @@ export default function App() {
     }
   };
 
-  // Cursor Move Broadcast
-  const handleCursorMove = (pt: Point) => {
-    updateCursorPresence(roomId, {
-      id: currentUser.id,
-      name: currentUser.name,
-      role: currentUser.role,
-      color: currentUser.color,
-      x: pt.x,
-      y: pt.y,
-      active: true,
-      lastSeen: Date.now(),
-    });
-  };
+  // Cursor Move Broadcast (memoized to keep Canvas props stable)
+  const handleCursorMove = useCallback(
+    (pt: Point) => {
+      updateCursorPresence(roomId, {
+        id: currentUser.id,
+        name: currentUser.name,
+        role: currentUser.role,
+        color: currentUser.color,
+        x: pt.x,
+        y: pt.y,
+        active: true,
+        lastSeen: Date.now(),
+      });
+    },
+    [roomId, currentUser.id, currentUser.name, currentUser.role, currentUser.color]
+  );
 
   // Export board as PNG
   const handleExportPNG = () => {
@@ -487,6 +507,36 @@ export default function App() {
 
   return (
     <div className="relative w-screen h-screen overflow-hidden flex flex-col bg-slate-50 text-slate-800">
+      {/* Firestore Quota Exceeded Friendly Banner */}
+      {quotaExceeded && !dismissedQuotaBanner && (
+        <div className="bg-amber-500 text-slate-950 px-4 py-2 text-xs font-medium flex items-center justify-between gap-3 shadow-md z-50 shrink-0 border-b border-amber-600">
+          <div className="flex items-center gap-2 overflow-hidden text-ellipsis">
+            <AlertTriangle className="w-4 h-4 shrink-0 text-slate-950" />
+            <span>
+              <strong>Firestore Daily Free Write Quota Exceeded:</strong> Switched to local offline & multi-tab collaboration mode. All drawing, sticky notes, tools, and PNG/JSON exports remain fully active. Free quota resets tomorrow.
+            </span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <a
+              href="https://console.firebase.google.com/project/gen-lang-client-0670794076/firestore/databases/ai-studio-conceptboardcoll-cdd84032-8dd9-48ec-903e-d280c218114e/data?openUpgradeDialog=true"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-2.5 py-1 bg-slate-900 text-white rounded-lg font-semibold hover:bg-slate-800 transition-colors flex items-center gap-1 text-[11px]"
+            >
+              <span>View Quota / Upgrade</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
+            <button
+              onClick={() => setDismissedQuotaBanner(true)}
+              className="p-1 hover:bg-amber-600 rounded text-slate-950 transition-colors cursor-pointer"
+              title="Dismiss notice"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Top Toolbar */}
       <TopBar
         activeTool={activeTool}
@@ -582,10 +632,7 @@ export default function App() {
           selectedObjectId={selectedObjectId}
           onSelectObject={setSelectedObjectId}
           showCursorReticle={showCursorReticle}
-          onViewChange={(newPan, newZoom) => {
-            setCanvasPan(newPan);
-            setCanvasZoom(newZoom);
-          }}
+          onViewChange={handleViewChange}
         />
 
         {/* Live Remote Cursors */}

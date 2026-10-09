@@ -65,9 +65,20 @@ export const Canvas = forwardRef<CanvasRefHandle, CanvasProps>(({
   const [isHoveringCanvas, setIsHoveringCanvas] = useState(false);
 
   // Sync pan and zoom to parent for remote cursor positioning
+  const onViewChangeRef = useRef(onViewChange);
+  onViewChangeRef.current = onViewChange;
+
+  const lastReportedView = useRef<{ x: number; y: number; zoom: number }>({ x: pan.x, y: pan.y, zoom });
   useEffect(() => {
-    onViewChange?.(pan, zoom);
-  }, [pan, zoom, onViewChange]);
+    if (
+      lastReportedView.current.x !== pan.x ||
+      lastReportedView.current.y !== pan.y ||
+      lastReportedView.current.zoom !== zoom
+    ) {
+      lastReportedView.current = { x: pan.x, y: pan.y, zoom };
+      onViewChangeRef.current?.(pan, zoom);
+    }
+  }, [pan.x, pan.y, zoom]);
 
   // Helper to get mouse coordinates relative to the canvas bounding rect
   const getCanvasPos = useCallback((clientX: number, clientY: number): Point => {
