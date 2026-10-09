@@ -19,7 +19,6 @@ import {
   Check,
   ZoomIn,
   ZoomOut,
-  Workflow,
 } from 'lucide-react';
 import { ToolType } from '../types/board';
 
@@ -48,7 +47,6 @@ interface CreativeToolbarProps {
   onZoomIn?: () => void;
   onZoomOut?: () => void;
   onResetZoom?: () => void;
-  onOpenWorkflow?: () => void;
 }
 
 const QUICK_COLORS = [
@@ -104,7 +102,6 @@ export const CreativeToolbar: React.FC<CreativeToolbarProps> = ({
   onZoomIn,
   onZoomOut,
   onResetZoom,
-  onOpenWorkflow,
 }) => {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
@@ -263,17 +260,6 @@ export const CreativeToolbar: React.FC<CreativeToolbarProps> = ({
           <StickyNote className="w-4 h-4 fill-amber-300" />
           <span className="font-semibold">Sticky</span>
         </button>
-
-        {onOpenWorkflow && (
-          <button
-            onClick={onOpenWorkflow}
-            className="p-2 rounded-xl transition-all flex items-center gap-1.5 text-xs text-indigo-700 bg-indigo-50 hover:bg-indigo-100 font-bold border border-indigo-200 cursor-pointer shadow-xs"
-            title="Workflow Templates & Flowchart Center"
-          >
-            <Workflow className="w-4 h-4 text-indigo-600" />
-            <span className="font-semibold">Workflow</span>
-          </button>
-        )}
 
         <div className="w-px h-5 bg-slate-200 mx-0.5" />
 

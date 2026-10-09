@@ -27,7 +27,6 @@ import {
   ZoomIn,
   ZoomOut,
   Github,
-  Workflow,
 } from 'lucide-react';
 import { ToolType, UserPresence } from '../types/board';
 import { GithubModal } from './GithubModal';
@@ -66,7 +65,6 @@ interface TopBarProps {
   onZoomIn?: () => void;
   onZoomOut?: () => void;
   onResetZoom?: () => void;
-  onOpenWorkflow?: () => void;
 }
 
 const PALETTE_COLORS = [
@@ -125,7 +123,6 @@ export const TopBar: React.FC<TopBarProps> = ({
   onZoomIn,
   onZoomOut,
   onResetZoom,
-  onOpenWorkflow,
 }) => {
   const [showFileMenu, setShowFileMenu] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -177,19 +174,6 @@ export const TopBar: React.FC<TopBarProps> = ({
                 onClick={() => setShowFileMenu(false)}
               />
               <div className="absolute left-0 mt-1.5 w-56 bg-white border border-slate-200 rounded-xl shadow-xl py-1 z-50 text-xs">
-                {onOpenWorkflow && (
-                  <button
-                    onClick={() => {
-                      onOpenWorkflow();
-                      setShowFileMenu(false);
-                    }}
-                    className="w-full text-left px-3.5 py-2 hover:bg-indigo-50 flex items-center gap-2 text-indigo-700 font-semibold"
-                  >
-                    <Workflow className="w-3.5 h-3.5 text-indigo-600" />
-                    <span>Insert Workflow...</span>
-                  </button>
-                )}
-                <div className="my-1 border-t border-slate-100" />
                 <button
                   onClick={() => {
                     onExportPNG();
@@ -262,17 +246,6 @@ export const TopBar: React.FC<TopBarProps> = ({
             </>
           )}
         </div>
-
-        {onOpenWorkflow && (
-          <button
-            onClick={onOpenWorkflow}
-            className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg border border-indigo-200 transition-colors cursor-pointer shadow-xs"
-            title="Workflow Templates & Flowcharts"
-          >
-            <Workflow className="w-3.5 h-3.5 text-indigo-600" />
-            <span className="hidden sm:inline">Workflow</span>
-          </button>
-        )}
       </div>
 
       {/* Zone 2: Main Tools Strip */}
