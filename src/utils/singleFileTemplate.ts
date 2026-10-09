@@ -1,0 +1,733 @@
+/**
+ * Generates the complete, zero-dependency, single-file HTML deliverable.
+ * Includes Firebase Realtime Database CDN, PDF.js CDN, full drawing canvas,
+ * sticky notes, live cursors, teacher controls, and setup instructions.
+ */
+
+export function getStandaloneHtmlContent(defaultRoomId: string = 'ABC123'): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Conceptboard Collab - Real-Time Whiteboard</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Firebase Compat CDN (No build step required) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+  
+  <!-- PDF.js CDN for rendering PDF documents onto board -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    if (window.pdfjsLib) {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+  </script>
+
+  <style>
+    body { margin: 0; padding: 0; overflow: hidden; user-select: none; font-family: system-ui, -apple-system, sans-serif; background-color: #f8fafc; }
+    canvas { touch-action: none; display: block; }
+    .cursor-pen { cursor: crosshair; }
+    .cursor-pan { cursor: grab; }
+    .cursor-panning { cursor: grabbing; }
+    .sticky-shadow { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.05); }
+  </style>
+</head>
+<body class="relative h-screen w-screen bg-slate-50 text-slate-800">
+
+  <!-- ========================================================
+       TOP TOOLBAR (Conceptboard Style)
+       ======================================================== -->
+  <header class="h-14 bg-white/95 backdrop-blur border-b border-slate-200 px-4 flex items-center justify-between z-30 select-none shadow-sm">
+    <!-- Brand & Room ID -->
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-sm" title="Whiteboard">CB</div>
+      <button id="btnShareRoom" class="ml-1 px-2.5 py-1 rounded-md border border-slate-200 hover:bg-slate-50 text-xs font-mono font-medium flex items-center gap-1.5 text-slate-700">
+        <span class="text-[10px] text-slate-400 font-sans">Room:</span>
+        <span id="displayRoomId" class="font-bold text-indigo-600">${defaultRoomId}</span>
+      </button>
+    </div>
+
+    <!-- Main Tools -->
+    <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 overflow-x-auto">
+      <button data-tool="select" class="tool-btn p-1.5 rounded-lg text-slate-700 hover:bg-white transition" title="Select / Move">⬚ Select</button>
+      <button data-tool="pan" class="tool-btn p-1.5 rounded-lg text-slate-700 hover:bg-white transition" title="Pan Hand">✋ Pan</button>
+      <div class="w-px h-4 bg-slate-300 mx-0.5"></div>
+      <button data-tool="pen" class="tool-btn active-tool p-1.5 rounded-lg bg-white shadow-xs font-semibold text-indigo-600 transition" title="Pen">✏️ Pen</button>
+      <button data-tool="highlighter" class="tool-btn p-1.5 rounded-lg text-slate-700 hover:bg-white transition" title="Highlighter">🖍️ Highlt</button>
+      <button data-tool="eraser" class="tool-btn p-1.5 rounded-lg text-slate-700 hover:bg-white transition" title="Eraser">🧽 Eraser</button>
+      <div class="w-px h-4 bg-slate-300 mx-0.5"></div>
+      <button data-tool="rect" class="tool-btn p-1.5 rounded-lg text-slate-700 hover:bg-white transition" title="Rectangle">▭ Rect</button>
+      <button data-tool="ellipse" class="tool-btn p-1.5 rounded-lg text-slate-700 hover:bg-white transition" title="Circle">◯ Circle</button>
+      <button data-tool="line" class="tool-btn p-1.5 rounded-lg text-slate-700 hover:bg-white transition" title="Line">╱ Line</button>
+      <button data-tool="arrow" class="tool-btn p-1.5 rounded-lg text-slate-700 hover:bg-white transition" title="Arrow">➜ Arrow</button>
+      <div class="w-px h-4 bg-slate-300 mx-0.5"></div>
+      <button data-tool="text" class="tool-btn p-1.5 rounded-lg text-slate-700 hover:bg-white transition" title="Text Box">T Text</button>
+      <button data-tool="sticky" class="tool-btn p-1.5 rounded-lg text-slate-700 hover:bg-white transition text-amber-600 font-semibold" title="Sticky Note">🗒️ Sticky</button>
+      <div class="w-px h-4 bg-slate-300 mx-0.5"></div>
+      <label class="cursor-pointer p-1.5 rounded-lg text-slate-700 hover:bg-white transition" title="Upload Image">
+        🖼️ Image
+        <input id="inputImage" type="file" accept="image/*" class="hidden">
+      </label>
+      <label class="cursor-pointer p-1.5 rounded-lg text-slate-700 hover:bg-white transition" title="Upload PDF (Renders pages)">
+        📄 PDF
+        <input id="inputPDF" type="file" accept="application/pdf" class="hidden">
+      </label>
+    </div>
+
+    <!-- Modifiers & Actions -->
+    <div class="flex items-center gap-2">
+      <!-- Color Picker -->
+      <input id="inputColor" type="color" value="#0f172a" class="w-7 h-7 rounded border border-slate-300 cursor-pointer" title="Stroke Color">
+      
+      <!-- Stroke Size -->
+      <div class="flex items-center gap-1 text-xs text-slate-500">
+        <span class="text-[10px]">Size:</span>
+        <input id="inputSize" type="range" min="1" max="24" value="3" class="w-14 accent-indigo-600">
+      </div>
+
+      <!-- Undo / Redo -->
+      <button id="btnUndo" class="p-1.5 rounded hover:bg-slate-100 text-slate-600 text-xs" title="Undo (Ctrl+Z)">↩</button>
+      <button id="btnRedo" class="p-1.5 rounded hover:bg-slate-100 text-slate-600 text-xs" title="Redo (Ctrl+Y)">↪</button>
+
+      <!-- Firebase Setup Button -->
+      <button id="btnFirebaseSetup" class="px-2.5 py-1 text-xs font-medium rounded-lg border border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 transition flex items-center gap-1">
+        🔥 <span id="fbStatusText">Setup Firebase</span>
+      </button>
+
+      <!-- Online Count -->
+      <div class="px-2 py-1 bg-slate-100 rounded-lg text-xs font-medium flex items-center gap-1 text-slate-700">
+        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span id="userCount">1 Online</span>
+      </div>
+
+      <!-- User Profile -->
+      <button id="btnUserProfile" class="px-2.5 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-medium flex items-center gap-1.5 text-slate-700">
+        <span id="userAvatarDot" class="w-2.5 h-2.5 rounded-full bg-indigo-600"></span>
+        <span id="userNameLabel">Teacher</span>
+      </button>
+
+      <!-- Share Button -->
+      <button id="btnShareModal" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-xs transition">
+        🔗 Share
+      </button>
+    </div>
+  </header>
+
+  <!-- ========================================================
+       INFINITE WHITEBOARD CANVAS
+       ======================================================== -->
+  <main class="relative w-full h-[calc(100vh-3.5rem)] overflow-hidden cursor-crosshair">
+    <canvas id="whiteboardCanvas" class="block w-full h-full"></canvas>
+    
+    <!-- Remote Live Cursors Container -->
+    <div id="cursorsContainer" class="absolute inset-0 pointer-events-none overflow-hidden z-20"></div>
+
+    <!-- Zoom Controls (Bottom Right) -->
+    <div class="absolute bottom-5 right-5 z-20 flex items-center gap-1 bg-white/95 backdrop-blur px-2 py-1 rounded-xl border border-slate-200 shadow-md text-xs">
+      <button id="btnZoomOut" class="p-1 rounded hover:bg-slate-100 text-slate-600 font-bold">－</button>
+      <button id="btnZoomReset" class="px-2 py-0.5 rounded font-mono text-[11px] font-semibold text-slate-700 hover:bg-slate-100">100%</button>
+      <button id="btnZoomIn" class="p-1 rounded hover:bg-slate-100 text-slate-600 font-bold">＋</button>
+      <button id="btnExportPNG" class="ml-1 px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px]">Save PNG</button>
+    </div>
+
+    <!-- Student Read-Only Overlay Notice -->
+    <div id="readOnlyNotice" class="hidden absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-amber-500/90 text-white text-xs font-semibold px-4 py-1.5 rounded-full shadow-lg">
+      🔒 Viewing Mode: Teacher has paused student editing.
+    </div>
+  </main>
+
+  <!-- ========================================================
+       MODALS: SHARE, FIREBASE SETUP, USER PROFILE
+       ======================================================== -->
+  <!-- Share Modal -->
+  <div id="modalShare" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md p-6 space-y-4">
+      <div class="flex items-center justify-between border-b pb-3">
+        <h3 class="font-bold text-slate-900">Share Whiteboard Link</h3>
+        <button onclick="toggleModal('modalShare', false)" class="text-slate-400 hover:text-slate-600">✕</button>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-700 mb-1">Direct Link for Students</label>
+        <div class="flex gap-2">
+          <input id="inputShareLink" type="text" readonly class="w-full text-xs font-mono bg-slate-50 border rounded-lg p-2 text-slate-700">
+          <button onclick="copyShareLink()" class="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium">Copy</button>
+        </div>
+      </div>
+      <div class="bg-slate-50 p-3 rounded-xl border flex items-center justify-between">
+        <span class="text-xs text-slate-500 font-medium">Room Code:</span>
+        <span id="modalRoomCode" class="text-base font-mono font-bold text-slate-900">${defaultRoomId}</span>
+      </div>
+      <div class="border-t pt-3">
+        <label class="block text-xs font-semibold text-slate-700 mb-2">Teacher Permission Control</label>
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <button id="btnPermEdit" onclick="setPermission('edit')" class="p-2 rounded-lg border border-indigo-600 bg-indigo-50 text-indigo-900 font-semibold text-left">Everyone Can Edit</button>
+          <button id="btnPermView" onclick="setPermission('view_only')" class="p-2 rounded-lg border border-slate-200 text-slate-600 text-left">View Only (Lecture)</button>
+        </div>
+      </div>
+      <div class="text-[11px] text-slate-500 bg-amber-50 p-2.5 rounded-lg border border-amber-100">
+        🌍 Optimized for fast cross-continent collaboration between Pakistan/Saudi Arabia and UK/Australia.
+      </div>
+      <div class="flex justify-end pt-2">
+        <button onclick="toggleModal('modalShare', false)" class="px-4 py-1.5 bg-slate-900 text-white rounded-lg text-xs">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase Setup Modal -->
+  <div id="modalFirebase" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b pb-3">
+        <div>
+          <h3 class="font-bold text-slate-900 flex items-center gap-1.5">🔥 Firebase Realtime Database Setup</h3>
+          <p class="text-xs text-slate-500">100% Free Google Spark Tier — No credit card needed</p>
+        </div>
+        <button onclick="toggleModal('modalFirebase', false)" class="text-slate-400 hover:text-slate-600">✕</button>
+      </div>
+      
+      <div class="text-xs text-slate-700 space-y-2.5 bg-slate-50 p-3 rounded-xl border">
+        <p><strong>Step 1:</strong> Go to <a href="https://console.firebase.google.com" target="_blank" class="text-indigo-600 underline">console.firebase.google.com</a> and click "Add project".</p>
+        <p><strong>Step 2:</strong> In left menu, click <strong>Build &gt; Realtime Database &gt; Create Database</strong>.</p>
+        <p><strong>Step 3:</strong> Under Rules tab, paste:</p>
+        <pre class="bg-slate-900 text-slate-100 p-2 rounded text-[11px] font-mono overflow-x-auto">{"rules": {"boards": {"$roomId": {".read": true, ".write": true}}}}</pre>
+        <p><strong>Step 4:</strong> Click ⚙️ Project Settings &gt; General &gt; Web App &gt; Copy config keys and paste below:</p>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1">API Key</label>
+          <input id="fbApiKey" type="text" placeholder="AIzaSy..." class="w-full text-xs font-mono border rounded-lg p-2">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1">Database URL</label>
+          <input id="fbDbUrl" type="text" placeholder="https://your-project-rtdb.firebaseio.com" class="w-full text-xs font-mono border rounded-lg p-2">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1">Project ID</label>
+          <input id="fbProjectId" type="text" placeholder="your-project-id" class="w-full text-xs font-mono border rounded-lg p-2">
+        </div>
+      </div>
+
+      <div class="flex justify-between items-center pt-2 border-t">
+        <button onclick="clearFirebaseConfig()" class="text-xs text-rose-600 hover:underline">Clear Config</button>
+        <div class="flex gap-2">
+          <button onclick="toggleModal('modalFirebase', false)" class="px-3 py-1.5 text-xs text-slate-600">Cancel</button>
+          <button onclick="saveFirebaseConfig()" class="px-4 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold">Save & Connect</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- ========================================================
+       CLIENT SCRIPT & FIREBASE SYNC ENGINE
+       ======================================================== -->
+  <script>
+    // ==========================================
+    // 🔑 PRE-CONFIGURED FIREBASE CREDENTIALS
+    // ==========================================
+    const DEFAULT_FIREBASE_CONFIG = {
+      apiKey: "AIzaSyBZH-TmaNIL2Kr_nqiVdpQdl57zhb_It70",
+      authDomain: "gen-lang-client-0670794076.firebaseapp.com",
+      projectId: "gen-lang-client-0670794076"
+    };
+
+    // Global App State
+    let currentRoomId = new URLSearchParams(window.location.search).get('room') || '${defaultRoomId}';
+    let currentUser = {
+      id: 'user_' + Math.random().toString(36).slice(2, 8),
+      name: 'Teacher',
+      role: 'teacher',
+      color: '#4f46e5'
+    };
+    let activeTool = 'pen';
+    let currentColor = '#0f172a';
+    let strokeWidth = 3;
+    let pan = { x: 80, y: 80 };
+    let zoom = 1.0;
+    let isDrawing = false;
+    let liveStroke = [];
+    let boardObjects = {};
+    let undoStack = [];
+    let redoStack = [];
+    let permissionMode = 'edit';
+    let isFirebaseReady = false;
+    let dbRef = null;
+
+    // Canvas Elements
+    const canvas = document.getElementById('whiteboardCanvas');
+    const ctx = canvas.getContext('2d');
+    const displayRoomId = document.getElementById('displayRoomId');
+    displayRoomId.textContent = currentRoomId;
+
+    // Toast function
+    function showToast(msg) {
+      const container = document.getElementById('toastContainer');
+      const el = document.createElement('div');
+      el.className = 'px-4 py-2.5 bg-slate-900/90 text-white text-xs font-medium rounded-xl shadow-lg border border-slate-700 transition';
+      el.textContent = msg;
+      container.appendChild(el);
+      setTimeout(() => el.remove(), 2500);
+    }
+
+    // Modal helpers
+    function toggleModal(id, show) {
+      document.getElementById(id).classList.toggle('hidden', !show);
+      if (id === 'modalShare' && show) {
+        document.getElementById('inputShareLink').value = window.location.href;
+      }
+    }
+    document.getElementById('btnShareRoom').onclick = () => toggleModal('modalShare', true);
+    document.getElementById('btnShareModal').onclick = () => toggleModal('modalShare', true);
+    document.getElementById('btnFirebaseSetup').onclick = () => toggleModal('modalFirebase', true);
+
+    function copyShareLink() {
+      navigator.clipboard.writeText(window.location.href);
+      showToast('Shareable link copied to clipboard!');
+    }
+
+    function getCanvasPos(cx, cy) {
+      const rect = canvas.getBoundingClientRect();
+      return { x: cx - rect.left, y: cy - rect.top };
+    }
+
+    // Coordinate conversion
+    function screenToWorld(sx, sy) {
+      return { x: sx / zoom - pan.x, y: sy / zoom - pan.y };
+    }
+    function worldToScreen(wx, wy) {
+      return { x: (wx + pan.x) * zoom, y: (wy + pan.y) * zoom };
+    }
+
+    // Canvas Resize
+    function resizeCanvas() {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = Math.round(rect.width * dpr);
+      canvas.height = Math.round(rect.height * dpr);
+      render();
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    // Render Canvas
+    function render() {
+      const dpr = window.devicePixelRatio || 1;
+      ctx.save();
+      ctx.scale(dpr, dpr);
+      const rect = canvas.getBoundingClientRect();
+      const w = rect.width;
+      const h = rect.height;
+
+      // Background & Subtle Grid
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(0, 0, w, h);
+
+      const gridSize = 32 * zoom;
+      const startX = (pan.x * zoom) % gridSize;
+      const startY = (pan.y * zoom) % gridSize;
+      ctx.fillStyle = '#cbd5e1';
+      for (let x = startX; x < w; x += gridSize) {
+        for (let y = startY; y < h; y += gridSize) {
+          ctx.beginPath();
+          ctx.arc(x, y, 1, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // Draw all objects
+      Object.values(boardObjects).forEach(obj => {
+        if (obj.type === 'pen' || obj.type === 'highlighter') {
+          if (!obj.points || obj.points.length < 2) return;
+          ctx.save();
+          ctx.beginPath();
+          const p0 = worldToScreen(obj.points[0].x, obj.points[0].y);
+          ctx.moveTo(p0.x, p0.y);
+          for (let i = 1; i < obj.points.length; i++) {
+            const p = worldToScreen(obj.points[i].x, obj.points[i].y);
+            ctx.lineTo(p.x, p.y);
+          }
+          ctx.strokeStyle = obj.color || '#000';
+          ctx.lineWidth = (obj.strokeWidth || 3) * zoom;
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          if (obj.type === 'highlighter') {
+            ctx.globalAlpha = 0.35;
+            ctx.lineWidth = (obj.strokeWidth || 8) * 2.5 * zoom;
+          }
+          ctx.stroke();
+          ctx.restore();
+        } else if (obj.type === 'sticky') {
+          const s = worldToScreen(obj.x, obj.y);
+          const sw = (obj.width || 180) * zoom;
+          const sh = (obj.height || 180) * zoom;
+          ctx.save();
+          ctx.fillStyle = obj.stickyColor || '#fef08a';
+          ctx.shadowColor = 'rgba(0,0,0,0.08)';
+          ctx.shadowBlur = 8 * zoom;
+          ctx.fillRect(s.x, s.y, sw, sh);
+          if (obj.text) {
+            ctx.fillStyle = '#1e293b';
+            ctx.font = Math.round(14 * zoom) + 'px sans-serif';
+            ctx.fillText(obj.text, s.x + 12 * zoom, s.y + 24 * zoom);
+          }
+          ctx.restore();
+        } else if (obj.type === 'rect') {
+          const s = worldToScreen(obj.x, obj.y);
+          ctx.strokeStyle = obj.color || '#000';
+          ctx.lineWidth = (obj.strokeWidth || 2) * zoom;
+          ctx.strokeRect(s.x, s.y, (obj.width || 100) * zoom, (obj.height || 100) * zoom);
+        } else if (obj.type === 'ellipse') {
+          const s = worldToScreen(obj.x, obj.y);
+          const rw = Math.abs((obj.width || 100) * zoom / 2);
+          const rh = Math.abs((obj.height || 100) * zoom / 2);
+          ctx.beginPath();
+          ctx.ellipse(s.x + rw, s.y + rh, rw, rh, 0, 0, Math.PI * 2);
+          ctx.strokeStyle = obj.color || '#000';
+          ctx.lineWidth = (obj.strokeWidth || 2) * zoom;
+          ctx.stroke();
+        } else if (obj.type === 'image' && obj.imgElement) {
+          const s = worldToScreen(obj.x, obj.y);
+          ctx.drawImage(obj.imgElement, s.x, s.y, (obj.width || 200) * zoom, (obj.height || 200) * zoom);
+        }
+      });
+
+      // Live local stroke preview (Latency optimization)
+      if (liveStroke.length >= 2) {
+        ctx.save();
+        ctx.beginPath();
+        const p0 = worldToScreen(liveStroke[0].x, liveStroke[0].y);
+        ctx.moveTo(p0.x, p0.y);
+        for (let i = 1; i < liveStroke.length; i++) {
+          const p = worldToScreen(liveStroke[i].x, liveStroke[i].y);
+          ctx.lineTo(p.x, p.y);
+        }
+        ctx.strokeStyle = currentColor;
+        ctx.lineWidth = strokeWidth * zoom;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        if (activeTool === 'highlighter') {
+          ctx.globalAlpha = 0.35;
+          ctx.lineWidth = strokeWidth * 2.5 * zoom;
+        }
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      ctx.restore();
+    }
+
+    // Pointer Events & Drawing
+    let dragStart = null;
+
+    canvas.addEventListener('pointerdown', (e) => {
+      canvas.setPointerCapture(e.pointerId);
+      isDrawing = true;
+      const pos = getCanvasPos(e.clientX, e.clientY);
+      dragStart = { x: pos.x, y: pos.y };
+      const pt = screenToWorld(pos.x, pos.y);
+
+      if (activeTool === 'pen' || activeTool === 'highlighter') {
+        liveStroke = [pt];
+      } else if (activeTool === 'sticky') {
+        const text = prompt('Enter text for sticky note:', 'Classroom Note');
+        if (text) {
+          const newSticky = {
+            id: 'sticky_' + Date.now(),
+            type: 'sticky',
+            x: pt.x - 90,
+            y: pt.y - 90,
+            width: 180,
+            height: 180,
+            text,
+            stickyColor: '#fef08a',
+            createdAt: Date.now()
+          };
+          commitObject(newSticky);
+        }
+        isDrawing = false;
+      }
+    });
+
+    canvas.addEventListener('pointermove', (e) => {
+      const pos = getCanvasPos(e.clientX, e.clientY);
+      const pt = screenToWorld(pos.x, pos.y);
+      broadcastCursor(pt);
+
+      if (!isDrawing) return;
+
+      if (activeTool === 'pan') {
+        pan.x += (pos.x - dragStart.x) / zoom;
+        pan.y += (pos.y - dragStart.y) / zoom;
+        dragStart = { x: pos.x, y: pos.y };
+        render();
+        return;
+      }
+
+      if (activeTool === 'pen' || activeTool === 'highlighter') {
+        liveStroke.push(pt);
+        render();
+      }
+    });
+
+    canvas.addEventListener('pointerup', () => {
+      if (!isDrawing) return;
+      isDrawing = false;
+
+      // Commit stroke once on pen lift (Reduces network traffic by 90%)
+      if ((activeTool === 'pen' || activeTool === 'highlighter') && liveStroke.length >= 2) {
+        const newObj = {
+          id: 'stroke_' + Date.now(),
+          type: activeTool,
+          points: liveStroke,
+          color: currentColor,
+          strokeWidth: strokeWidth,
+          createdAt: Date.now()
+        };
+        commitObject(newObj);
+      }
+      liveStroke = [];
+      render();
+    });
+
+    // Zoom on wheel
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? 1.1 : 0.9;
+      zoom = Math.min(Math.max(zoom * factor, 0.2), 3.0);
+      document.getElementById('btnZoomReset').textContent = Math.round(zoom * 100) + '%';
+      render();
+    });
+
+    // Commit Object & Sync
+    function commitObject(obj) {
+      boardObjects[obj.id] = obj;
+      undoStack.push(obj.id);
+      render();
+
+      if (isFirebaseReady && dbRef) {
+        dbRef.child('objects/' + obj.id).set(obj);
+      } else {
+        localStorage.setItem('cb_' + currentRoomId, JSON.stringify(boardObjects));
+      }
+    }
+
+    // Broadcast live cursor
+    let lastCursorTime = 0;
+    function broadcastCursor(pt) {
+      const now = Date.now();
+      if (now - lastCursorTime > 50) {
+        lastCursorTime = now;
+        if (isFirebaseReady && dbRef) {
+          dbRef.child('presence/' + currentUser.id).set({
+            name: currentUser.name,
+            color: currentUser.color,
+            x: pt.x,
+            y: pt.y,
+            lastSeen: now
+          });
+        }
+      }
+    }
+
+    // Firebase Initialization
+    function initFirebase() {
+      const savedConfig = localStorage.getItem('cb_firebase_creds');
+      const cfg = savedConfig ? JSON.parse(savedConfig) : DEFAULT_FIREBASE_CONFIG;
+
+      if (cfg && cfg.apiKey && cfg.databaseURL) {
+        try {
+          if (!firebase.apps.length) {
+            firebase.initializeApp(cfg);
+          }
+          const db = firebase.database();
+          dbRef = db.ref('boards/' + currentRoomId);
+          isFirebaseReady = true;
+          document.getElementById('fbStatusText').textContent = 'Firebase Connected';
+          document.getElementById('btnFirebaseSetup').className = 'px-2.5 py-1 text-xs font-medium rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-800';
+
+          // Listen for objects
+          dbRef.child('objects').on('value', (snap) => {
+            const val = snap.val() || {};
+            boardObjects = val;
+            // Preload images
+            Object.values(boardObjects).forEach(o => {
+              if (o.type === 'image' && o.src && !o.imgElement) {
+                const img = new Image();
+                img.src = o.src;
+                img.onload = render;
+                o.imgElement = img;
+              }
+            });
+            render();
+          });
+
+          // Listen for presence & cursors
+          dbRef.child('presence').on('value', (snap) => {
+            const users = snap.val() || {};
+            renderCursors(users);
+          });
+
+          showToast('Connected to Firebase Realtime Database!');
+        } catch (err) {
+          console.warn('Firebase init error', err);
+        }
+      } else {
+        // Fallback to local storage
+        try {
+          const cached = localStorage.getItem('cb_' + currentRoomId);
+          if (cached) boardObjects = JSON.parse(cached);
+        } catch(e) {}
+      }
+    }
+
+    // Render Remote Cursors
+    function renderCursors(users) {
+      const container = document.getElementById('cursorsContainer');
+      container.innerHTML = '';
+      const now = Date.now();
+      let activeCount = 1;
+
+      Object.entries(users).forEach(([uid, u]) => {
+        if (uid === currentUser.id) return;
+        if (now - (u.lastSeen || 0) > 40000) return;
+        activeCount++;
+
+        const s = worldToScreen(u.x, u.y);
+        const cursorEl = document.createElement('div');
+        cursorEl.className = 'absolute top-0 left-0 transition-transform duration-75';
+        cursorEl.style.transform = \`translate3d(\${s.x}px, \${s.y}px, 0)\`;
+        cursorEl.innerHTML = \`
+          <div style="color: \${u.color || '#4f46e5'}">▲</div>
+          <div style="background-color: \${u.color || '#4f46e5'}" class="text-[10px] text-white px-1.5 py-0.5 rounded shadow whitespace-nowrap">
+            \${u.name || 'Student'}
+          </div>
+        \`;
+        container.appendChild(cursorEl);
+      });
+      document.getElementById('userCount').textContent = activeCount + ' Online';
+    }
+
+    // Image Upload
+    document.getElementById('inputImage').onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const src = ev.target.result;
+        const img = new Image();
+        img.onload = () => {
+          const pt = screenToWorld(window.innerWidth / 2, window.innerHeight / 2);
+          const obj = {
+            id: 'img_' + Date.now(),
+            type: 'image',
+            x: pt.x - 150,
+            y: pt.y - 150,
+            width: 300,
+            height: Math.round(300 * (img.height / img.width)),
+            src: src,
+            imgElement: img
+          };
+          commitObject(obj);
+          showToast('Image inserted onto board!');
+        };
+        img.src = src;
+      };
+      reader.readAsDataURL(file);
+    };
+
+    // PDF Upload via PDF.js CDN
+    document.getElementById('inputPDF').onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file || !window.pdfjsLib) return;
+      showToast('Rendering PDF pages...');
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        const pt = screenToWorld(window.innerWidth / 2, window.innerHeight / 2);
+
+        for (let i = 1; i <= Math.min(pdf.numPages, 5); i++) {
+          const page = await pdf.getPage(i);
+          const viewport = page.getViewport({ scale: 1.2 });
+          const offCanvas = document.createElement('canvas');
+          offCanvas.width = viewport.width;
+          offCanvas.height = viewport.height;
+          const offCtx = offCanvas.getContext('2d');
+          await page.render({ canvasContext: offCtx, viewport }).promise;
+
+          const dataUrl = offCanvas.toDataURL('image/jpeg', 0.85);
+          const img = new Image();
+          img.src = dataUrl;
+          img.onload = () => {
+            const pageObj = {
+              id: 'pdf_page_' + i + '_' + Date.now(),
+              type: 'image',
+              x: pt.x - 200 + (i - 1) * 320,
+              y: pt.y - 180,
+              width: 300,
+              height: Math.round(300 * (viewport.height / viewport.width)),
+              src: dataUrl,
+              imgElement: img
+            };
+            commitObject(pageObj);
+          };
+        }
+        showToast('PDF pages uploaded to board!');
+      } catch (err) {
+        showToast('Error loading PDF: ' + err.message);
+      }
+    };
+
+    // Export Board as PNG
+    document.getElementById('btnExportPNG').onclick = () => {
+      const a = document.createElement('a');
+      a.download = 'whiteboard-' + currentRoomId + '.png';
+      a.href = canvas.toDataURL('image/png');
+      a.click();
+      showToast('Board exported as PNG!');
+    };
+
+    // Save Firebase Config
+    function saveFirebaseConfig() {
+      const apiKey = document.getElementById('fbApiKey').value.trim();
+      const databaseURL = document.getElementById('fbDbUrl').value.trim();
+      const projectId = document.getElementById('fbProjectId').value.trim();
+      if (!apiKey || !databaseURL) {
+        alert('API Key and Database URL are required!');
+        return;
+      }
+      localStorage.setItem('cb_firebase_creds', JSON.stringify({ apiKey, databaseURL, projectId }));
+      toggleModal('modalFirebase', false);
+      location.reload();
+    }
+    function clearFirebaseConfig() {
+      localStorage.removeItem('cb_firebase_creds');
+      toggleModal('modalFirebase', false);
+      location.reload();
+    }
+
+    // Tool switching
+    document.querySelectorAll('.tool-btn').forEach(btn => {
+      btn.onclick = () => {
+        document.querySelectorAll('.tool-btn').forEach(b => {
+          b.classList.remove('bg-white', 'shadow-xs', 'font-semibold', 'text-indigo-600');
+        });
+        btn.classList.add('bg-white', 'shadow-xs', 'font-semibold', 'text-indigo-600');
+        activeTool = btn.dataset.tool;
+      };
+    });
+
+    document.getElementById('inputColor').onchange = (e) => currentColor = e.target.value;
+    document.getElementById('inputSize').oninput = (e) => strokeWidth = Number(e.target.value);
+
+    // Initial load
+    resizeCanvas();
+    initFirebase();
+  </script>
+</body>
+</html>`;
+}

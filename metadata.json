@@ -1,0 +1,6 @@
+{
+  "name": "Conceptboard Collab - Real-Time Whiteboard",
+  "description": "Real-time collaborative online whiteboard with Firebase Realtime Database sync, PDF/image rendering, live cursors, teacher controls, and single-file export.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

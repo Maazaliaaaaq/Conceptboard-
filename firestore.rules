@@ -1,0 +1,35 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Connection testing endpoint for boot validation
+    match /test/{docId} {
+      allow read, write: if true;
+    }
+
+    // Whiteboard rooms, objects, and live cursors
+    match /boards/{roomId} {
+      allow read, write: if isValidId(roomId);
+
+      match /objects/{objectId} {
+        allow read: if isValidId(roomId);
+        allow write, delete: if isValidId(roomId) && isValidId(objectId);
+      }
+
+      match /presence/{userId} {
+        allow read: if isValidId(roomId);
+        allow write, delete: if isValidId(roomId) && isValidId(userId);
+      }
+    }
+
+    // Default deny all other paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

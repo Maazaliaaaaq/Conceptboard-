@@ -1,0 +1,72 @@
+{
+  "entities": {
+    "board_room": {
+      "title": "Board Room",
+      "description": "Collaborative whiteboard room configuration and permissions",
+      "type": "object",
+      "properties": {
+        "roomId": { "type": "string", "maxLength": 32 },
+        "permissionMode": { "type": "string", "enum": ["edit", "view_only"] },
+        "teacherId": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 100 },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["roomId", "permissionMode"]
+    },
+    "board_object": {
+      "title": "Board Object",
+      "description": "Individual stroke, shape, sticky note, or media on the board",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 64 },
+        "type": { "type": "string", "maxLength": 32 },
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "width": { "type": "number" },
+        "height": { "type": "number" },
+        "color": { "type": "string", "maxLength": 32 },
+        "strokeWidth": { "type": "number" },
+        "fill": { "type": "boolean" },
+        "fillColor": { "type": "string", "maxLength": 32 },
+        "text": { "type": "string", "maxLength": 10000 },
+        "stickyColor": { "type": "string", "maxLength": 32 },
+        "src": { "type": "string", "maxLength": 500000 },
+        "fileName": { "type": "string", "maxLength": 256 },
+        "pageNumber": { "type": "number" },
+        "createdAt": { "type": "number" },
+        "zIndex": { "type": "number" }
+      },
+      "required": ["id", "type", "x", "y", "createdAt"]
+    },
+    "user_presence": {
+      "title": "User Presence",
+      "description": "Live cursor position and user participant details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 64 },
+        "name": { "type": "string", "maxLength": 64 },
+        "role": { "type": "string", "enum": ["teacher", "student"] },
+        "color": { "type": "string", "maxLength": 32 },
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "active": { "type": "boolean" },
+        "lastSeen": { "type": "number" }
+      },
+      "required": ["id", "name", "role", "x", "y", "lastSeen"]
+    }
+  },
+  "firestore": {
+    "/boards/{roomId}": {
+      "schema": "board_room",
+      "description": "Board room metadata and permissions"
+    },
+    "/boards/{roomId}/objects/{objectId}": {
+      "schema": "board_object",
+      "description": "Individual board elements"
+    },
+    "/boards/{roomId}/presence/{userId}": {
+      "schema": "user_presence",
+      "description": "Real-time user presence and cursors"
+    }
+  }
+}
