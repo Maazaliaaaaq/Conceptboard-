@@ -5,6 +5,7 @@ import { LiveCursors } from './components/LiveCursors';
 import { ShareModal } from './components/ShareModal';
 import { FirebaseSetupModal } from './components/FirebaseSetupModal';
 import { UserModal } from './components/UserModal';
+import { BoardManagerModal } from './components/BoardManagerModal';
 import { ToastContainer, ToastMessage } from './components/Toast';
 import { CreativeToolbar } from './components/CreativeToolbar';
 import { AlertTriangle, ExternalLink, X } from 'lucide-react';
@@ -115,6 +116,11 @@ export default function App() {
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isFirebaseOpen, setIsFirebaseOpen] = useState(false);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [isBoardManagerOpen, setIsBoardManagerOpen] = useState(false);
+
+  const handleSwitchRoom = (newRoomId: string) => {
+    setRoomId(newRoomId.trim().toUpperCase());
+  };
 
   // Firestore Quota limit state
   const [quotaExceeded, setQuotaExceeded] = useState(isFirestoreQuotaExceeded());
@@ -595,6 +601,7 @@ export default function App() {
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}
         onResetZoom={handleResetZoom}
+        onOpenBoardManager={() => setIsBoardManagerOpen(true)}
       />
 
       {/* Main Canvas Area */}
@@ -695,6 +702,16 @@ export default function App() {
           setCurrentUser({ ...currentUser, name, role, color });
           addToast('Profile updated!', 'success');
         }}
+      />
+
+      {/* Board Manager Modal */}
+      <BoardManagerModal
+        isOpen={isBoardManagerOpen}
+        onClose={() => setIsBoardManagerOpen(false)}
+        currentRoomId={roomId}
+        onSwitchRoom={handleSwitchRoom}
+        onToast={addToast}
+        isTeacher={currentUser.role === 'teacher'}
       />
 
       {/* Toast Notifications */}

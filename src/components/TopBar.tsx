@@ -65,6 +65,7 @@ interface TopBarProps {
   onZoomIn?: () => void;
   onZoomOut?: () => void;
   onResetZoom?: () => void;
+  onOpenBoardManager?: () => void;
 }
 
 const PALETTE_COLORS = [
@@ -123,6 +124,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   onZoomIn,
   onZoomOut,
   onResetZoom,
+  onOpenBoardManager,
 }) => {
   const [showFileMenu, setShowFileMenu] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -156,6 +158,18 @@ export const TopBar: React.FC<TopBarProps> = ({
           <span className="text-[10px] text-slate-400 font-sans">Room:</span>
           <span className="font-bold text-indigo-700">{roomId}</span>
         </div>
+
+        {/* Multi-Student Boards Switcher Button */}
+        {onOpenBoardManager && (
+          <button
+            onClick={onOpenBoardManager}
+            className="px-2.5 py-1 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-md transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+            title="Switch between different students or class boards"
+          >
+            <Users className="w-3.5 h-3.5 text-indigo-600" />
+            <span className="hidden sm:inline">Boards</span>
+          </button>
+        )}
 
         {/* File & Export Dropdown */}
         <div className="relative">
