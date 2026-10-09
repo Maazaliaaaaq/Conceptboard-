@@ -26,8 +26,10 @@ import {
   FileCode,
   ZoomIn,
   ZoomOut,
+  Github,
 } from 'lucide-react';
 import { ToolType, UserPresence } from '../types/board';
+import { GithubModal } from './GithubModal';
 
 interface TopBarProps {
   activeTool: ToolType;
@@ -124,6 +126,7 @@ export const TopBar: React.FC<TopBarProps> = ({
 }) => {
   const [showFileMenu, setShowFileMenu] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showGithubModal, setShowGithubModal] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const jsonInputRef = useRef<HTMLInputElement>(null);
@@ -213,6 +216,19 @@ export const TopBar: React.FC<TopBarProps> = ({
                   <div>
                     <span>Download Standalone .html</span>
                     <p className="text-[10px] text-amber-700 font-normal">Single-file zero-install version</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => {
+                    setShowGithubModal(true);
+                    setShowFileMenu(false);
+                  }}
+                  className="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-800 font-medium"
+                >
+                  <Github className="w-3.5 h-3.5 text-slate-800" />
+                  <div>
+                    <span>GitHub / Source Code</span>
+                    <p className="text-[10px] text-slate-500 font-normal">Push to repo or view setup</p>
                   </div>
                 </button>
                 <div className="my-1 border-t border-slate-100" />
@@ -605,6 +621,11 @@ export const TopBar: React.FC<TopBarProps> = ({
           <span>Share</span>
         </button>
       </div>
+
+      <GithubModal
+        isOpen={showGithubModal}
+        onClose={() => setShowGithubModal(false)}
+      />
     </header>
   );
 };
