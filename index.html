@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Conceptboard Collab - Real-Time Whiteboard</title>
+    <meta name="description" content="Real-time collaborative online whiteboard with Firebase Realtime Database sync, PDF/image rendering, live cursors, teacher controls, and single-file export." />
+    <meta property="og:title" content="Conceptboard Collab - Real-Time Whiteboard" />
+    <meta property="og:description" content="Real-time collaborative online whiteboard with Firebase Realtime Database sync, PDF/image rendering, live cursors, teacher controls, and single-file export." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+      if (window.pdfjsLib) {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      }
+    </script>
+    <script type="module" crossorigin src="./assets/index-DJ2dLxzW.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-PBA5GPsA.css">
+  </head>
+  <body class="bg-slate-50 text-slate-800 antialiased overflow-hidden select-none">
+    <div id="root"></div>
+    <script>
+      // Fallback detector if GitHub Pages is serving uncompiled root instead of Vite build
+      window.addEventListener('error', function (e) {
+        var isMainTsxError =
+          (e.target && (e.target.src || '').indexOf('main.tsx') !== -1) ||
+          (e.filename && e.filename.indexOf('main.tsx') !== -1);
+        if (isMainTsxError || (!document.getElementById('root').hasChildNodes() && window.location.hostname.indexOf('github.io') !== -1)) {
+          setTimeout(function() {
+            var root = document.getElementById('root');
+            if (root && !root.hasChildNodes()) {
+              root.innerHTML = '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f8fafc;padding:24px;font-family:system-ui,-apple-system,sans-serif;">' +
+                '<div style="max-width:540px;width:100%;background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;padding:32px;box-shadow:0 10px 25px -5px rgba(0,0,0,0.1);text-align:center;">' +
+                  '<div style="width:48px;height:48px;background:#eef2ff;color:#4f46e5;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:16px;font-size:24px;">🚀</div>' +
+                  '<h2 style="font-size:20px;font-weight:700;color:#0f172a;margin:0 0 8px 0;">Switch GitHub Pages to &quot;GitHub Actions&quot;</h2>' +
+                  '<p style="font-size:14px;color:#64748b;line-height:1.5;margin:0 0 24px 0;">Your build workflow is ready. GitHub Pages is currently serving uncompiled source files instead of the production build.</p>' +
+                  '<div style="background:#f1f5f9;border-radius:10px;padding:16px;text-align:left;font-size:13px;line-height:1.8;color:#334155;margin-bottom:24px;">' +
+                    '<strong>To activate in 5 seconds:</strong><br>' +
+                    '1. Go to <a href="https://github.com/Maazaliaaaaq/Conceptboard-/settings/pages" target="_blank" style="color:#4f46e5;font-weight:600;text-decoration:underline;">Repository Settings ➔ Pages</a><br>' +
+                    '2. Under <strong>Build and deployment ➔ Source</strong><br>' +
+                    '3. Select <strong>GitHub Actions</strong> (instead of <em>Deploy from a branch</em>).' +
+                  '</div>' +
+                  '<a href="https://github.com/Maazaliaaaaq/Conceptboard-/settings/pages" target="_blank" style="display:inline-block;background:#4f46e5;color:#ffffff;font-size:14px;font-weight:600;padding:10px 20px;border-radius:8px;text-decoration:none;">Open Pages Settings</a>' +
+                '</div>' +
+              '</div>';
+            }
+          }, 600);
+        }
+      }, true);
+    </script>
+  </body>
+</html>
+
