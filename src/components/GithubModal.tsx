@@ -101,7 +101,25 @@ git push -u origin main`;
             <GitBranch className="w-4 h-4 text-emerald-600 shrink-0" />
             <div>
               <p className="font-semibold text-[11px]">Git Repository Status: Initialized (main branch)</p>
-              <p className="text-[10px] text-emerald-700">All 27 project files have been committed to the local repository ready for export.</p>
+              <p className="text-[10px] text-emerald-700">Project files and GitHub Actions workflows are committed to local Git ready to push.</p>
+            </div>
+          </div>
+
+          {/* GitHub Workflows Included */}
+          <div className="bg-indigo-50/70 border border-indigo-200/80 rounded-xl p-3.5 space-y-2 text-indigo-950">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse" />
+              <p className="font-semibold text-[11px] text-indigo-900">GitHub Actions Workflows Configured:</p>
+            </div>
+            <div className="space-y-1.5 pl-4 text-[11px] text-indigo-800">
+              <div className="flex items-start gap-1.5">
+                <code className="bg-white/80 px-1.5 py-0.5 rounded text-[10px] font-mono border border-indigo-200 text-indigo-900 font-medium">.github/workflows/ci.yml</code>
+                <span>— Automated linting and production build verification on every push and PR.</span>
+              </div>
+              <div className="flex items-start gap-1.5">
+                <code className="bg-white/80 px-1.5 py-0.5 rounded text-[10px] font-mono border border-indigo-200 text-indigo-900 font-medium">.github/workflows/deploy.yml</code>
+                <span>— Automatic build and deployment to GitHub Pages on release.</span>
+              </div>
             </div>
           </div>
 

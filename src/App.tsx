@@ -7,6 +7,7 @@ import { FirebaseSetupModal } from './components/FirebaseSetupModal';
 import { UserModal } from './components/UserModal';
 import { ToastContainer, ToastMessage } from './components/Toast';
 import { CreativeToolbar } from './components/CreativeToolbar';
+import { WorkflowModal } from './components/WorkflowModal';
 import {
   BoardObject,
   ToolType,
@@ -112,6 +113,7 @@ export default function App() {
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isFirebaseOpen, setIsFirebaseOpen] = useState(false);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [isWorkflowModalOpen, setIsWorkflowModalOpen] = useState(false);
 
   // Canvas Pan & Zoom state kept in sync for live cursor projection
   const [canvasPan, setCanvasPan] = useState<Point>({ x: 100, y: 100 });
@@ -221,7 +223,7 @@ export default function App() {
 
         if (isWelcomeOrAppNote) {
           // Delete from Firebase/channel permanently so it does not remain on screen
-          deleteBoardObject(roomId, id);
+          deleteBoardObject(roomId, id).catch(() => {});
         } else {
           cleaned[id] = obj;
         }
@@ -255,12 +257,12 @@ export default function App() {
     setUndoStack((prev) => [...prev, obj]);
     setRedoStack([]);
     // Sync to Firebase / channel
-    syncBoardObject(roomId, obj);
+    syncBoardObject(roomId, obj).catch(() => {});
   };
 
   const handleObjectUpdated = (obj: BoardObject) => {
     setObjects((prev) => ({ ...prev, [obj.id]: obj }));
-    syncBoardObject(roomId, obj);
+    syncBoardObject(roomId, obj).catch(() => {});
   };
 
   const handleObjectDeleted = (id: string) => {
@@ -273,8 +275,26 @@ export default function App() {
       delete next[id];
       return next;
     });
-    deleteBoardObject(roomId, id);
+    deleteBoardObject(roomId, id).catch(() => {});
     addToast('Object deleted', 'info');
+  };
+
+  // Workflow Insertion Handler
+  const handleInsertWorkflow = (newObjects: BoardObject[]) => {
+    setObjects((prev) => {
+      const updated = { ...prev };
+      newObjects.forEach((obj) => {
+        updated[obj.id] = obj;
+      });
+      return updated;
+    });
+    newObjects.forEach((obj) => {
+      syncBoardObject(roomId, obj).catch(() => {});
+    });
+    if (newObjects.length > 0) {
+      setSelectedObjectId(newObjects[0].id);
+    }
+    addToast(`Workflow diagram inserted (${newObjects.length} elements)`, 'success');
   };
 
   // Undo / Redo
@@ -522,6 +542,7 @@ export default function App() {
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}
         onResetZoom={handleResetZoom}
+        onOpenWorkflow={() => setIsWorkflowModalOpen(true)}
       />
 
       {/* Main Canvas Area */}
@@ -550,6 +571,7 @@ export default function App() {
           onZoomIn={handleZoomIn}
           onZoomOut={handleZoomOut}
           onResetZoom={handleResetZoom}
+          onOpenWorkflow={() => setIsWorkflowModalOpen(true)}
           isSimulatingStudent={isSimulatingStudent}
           onSimulateStudentCursor={() => {
             setIsSimulatingStudent((prev) => {
@@ -624,6 +646,23 @@ export default function App() {
         onSave={(name, role, color) => {
           setCurrentUser({ ...currentUser, name, role, color });
           addToast('Profile updated!', 'success');
+        }}
+      />
+
+      {/* Workflow Center Modal */}
+      <WorkflowModal
+        isOpen={isWorkflowModalOpen}
+        onClose={() => setIsWorkflowModalOpen(false)}
+        onInsertWorkflow={handleInsertWorkflow}
+        canvasCenter={{
+          x: Math.round(
+            (-canvasPan.x + (typeof window !== 'undefined' ? window.innerWidth / 2 : 450)) /
+              canvasZoom
+          ),
+          y: Math.round(
+            (-canvasPan.y + (typeof window !== 'undefined' ? window.innerHeight / 2 : 350)) /
+              canvasZoom
+          ),
         }}
       />
 

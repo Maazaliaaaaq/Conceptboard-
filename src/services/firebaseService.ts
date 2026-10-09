@@ -54,21 +54,16 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
  */
 function cleanFirestoreData(data: any): any {
   if (data === null || data === undefined) return null;
-  if (Array.isArray(data)) {
-    return data
-      .map((item) => cleanFirestoreData(item))
-      .filter((item) => item !== undefined);
+  try {
+    const serialized = JSON.stringify(data, (_key, value) => {
+      if (value === undefined) return undefined;
+      return value;
+    });
+    if (!serialized) return null;
+    return JSON.parse(serialized);
+  } catch {
+    return data;
   }
-  if (typeof data === 'object') {
-    const cleaned: Record<string, any> = {};
-    for (const [key, val] of Object.entries(data)) {
-      if (val !== undefined) {
-        cleaned[key] = cleanFirestoreData(val);
-      }
-    }
-    return cleaned;
-  }
-  return data;
 }
 
 let firebaseApp: FirebaseApp | null = null;
@@ -223,18 +218,7 @@ export function subscribeToBoardObjects(
 export async function syncBoardObject(roomId: string, obj: BoardObject): Promise<void> {
   const docPath = `boards/${roomId}/objects/${obj.id}`;
 
-  if (firestoreDb) {
-    try {
-      const objDoc = doc(firestoreDb, 'boards', roomId, 'objects', obj.id);
-      const cleanData = cleanFirestoreData(obj);
-      await setDoc(objDoc, cleanData);
-      return;
-    } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, docPath);
-    }
-  }
-
-  // Local fallback
+  // Always update local cache and broadcast channel first for zero-latency UI
   const storageKey = `conceptboard_cache_${roomId}`;
   try {
     const current = JSON.parse(localStorage.getItem(storageKey) || '{}');
@@ -243,22 +227,27 @@ export async function syncBoardObject(roomId: string, obj: BoardObject): Promise
     const channel = getChannel(roomId);
     channel?.postMessage({ type: 'OBJECTS_UPDATE', objects: current });
   } catch (e) {
-    console.error('Local save error', e);
+    console.warn('Local cache save warning', e);
+  }
+
+  if (firestoreDb) {
+    try {
+      const objDoc = doc(firestoreDb, 'boards', roomId, 'objects', obj.id);
+      const cleanData = cleanFirestoreData(obj);
+      await setDoc(objDoc, cleanData);
+      return;
+    } catch (error) {
+      try {
+        handleFirestoreError(error, OperationType.WRITE, docPath);
+      } catch (err) {
+        console.warn('Firestore sync failed, retained in local storage:', err);
+      }
+    }
   }
 }
 
 export async function deleteBoardObject(roomId: string, objectId: string): Promise<void> {
   const docPath = `boards/${roomId}/objects/${objectId}`;
-
-  if (firestoreDb) {
-    try {
-      const objDoc = doc(firestoreDb, 'boards', roomId, 'objects', objectId);
-      await deleteDoc(objDoc);
-      return;
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, docPath);
-    }
-  }
 
   const storageKey = `conceptboard_cache_${roomId}`;
   try {
@@ -268,7 +257,21 @@ export async function deleteBoardObject(roomId: string, objectId: string): Promi
     const channel = getChannel(roomId);
     channel?.postMessage({ type: 'OBJECTS_UPDATE', objects: current });
   } catch (e) {
-    console.error('Local delete error', e);
+    console.warn('Local cache delete warning', e);
+  }
+
+  if (firestoreDb) {
+    try {
+      const objDoc = doc(firestoreDb, 'boards', roomId, 'objects', objectId);
+      await deleteDoc(objDoc);
+      return;
+    } catch (error) {
+      try {
+        handleFirestoreError(error, OperationType.DELETE, docPath);
+      } catch (err) {
+        console.warn('Firestore delete failed:', err);
+      }
+    }
   }
 }
 
@@ -305,7 +308,7 @@ export function updateCursorPresence(roomId: string, user: UserPresence): void {
         ...user,
         lastSeen: Date.now(),
       });
-      setDoc(userDoc, cleanUser);
+      setDoc(userDoc, cleanUser).catch(() => {});
       return;
     } catch {
       // Ignore background presence failures
