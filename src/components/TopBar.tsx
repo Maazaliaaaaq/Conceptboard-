@@ -26,8 +26,8 @@ import {
   ZoomOut,
   Github,
   Layers,
-  Eye,
   Copy,
+  Check,
 } from 'lucide-react';
 import { ToolType } from '../types/board';
 import { GithubModal } from './GithubModal';
@@ -65,19 +65,17 @@ export interface TopBarProps {
   onZoomOut?: () => void;
   onResetZoom?: () => void;
   onOpenBoardManager?: () => void;
-  showCursorReticle?: boolean;
-  onToggleCursorReticle?: () => void;
 }
 
 const PRIMARY_SWATCHES = [
-  '#0f172a', // dark slate
-  '#dc2626', // red
-  '#ea580c', // orange
-  '#ca8a04', // yellow
-  '#16a34a', // green
-  '#0284c7', // light blue
-  '#4f46e5', // indigo
-  '#9333ea', // purple
+  '#0f172a',
+  '#dc2626',
+  '#ea580c',
+  '#ca8a04',
+  '#16a34a',
+  '#0284c7',
+  '#4f46e5',
+  '#9333ea',
 ];
 
 const ALL_PALETTE_COLORS = [
@@ -136,8 +134,6 @@ export const TopBar: React.FC<TopBarProps> = ({
   onZoomOut,
   onResetZoom,
   onOpenBoardManager,
-  showCursorReticle = true,
-  onToggleCursorReticle,
 }) => {
   const [showFileMenu, setShowFileMenu] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -149,11 +145,10 @@ export const TopBar: React.FC<TopBarProps> = ({
   const isShapeTool = ['rect', 'ellipse', 'line', 'arrow'].includes(activeTool);
 
   return (
-    <header className="bg-white border-b border-slate-200 z-30 select-none shadow-xs shrink-0 w-full overflow-hidden">
-      {/* Tier 1: Branding, Room Code, Boards Manager, File Menu & User Actions */}
-      <div className="h-11 px-2.5 sm:px-4 flex items-center justify-between gap-2 border-b border-slate-100 overflow-x-auto scrollbar-none">
-        {/* Left: Brand, Room, Student Boards, File Menu */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+    <header className="bg-white border-b border-slate-200 z-30 select-none shadow-xs shrink-0 w-full">
+      {/* Tier 1: Branding, Room Code, Boards Manager, File Menu & User Actions (Fully visible, wrapped) */}
+      <div className="px-3 py-2 flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-slate-50/50">
+        <div className="flex flex-wrap items-center gap-2">
           <div
             className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-xs"
             title="Conceptboard Collab - Interactive Whiteboard"
@@ -161,34 +156,31 @@ export const TopBar: React.FC<TopBarProps> = ({
             CB
           </div>
 
-          {/* Room Badge */}
           <button
             onClick={onOpenShare}
-            className="px-2 py-1 bg-slate-50 hover:bg-slate-100 rounded-lg border border-slate-200 text-slate-700 text-xs font-mono font-medium flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+            className="px-2.5 py-1 bg-white hover:bg-slate-50 rounded-lg border border-slate-200 text-slate-700 text-xs font-mono font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
             title="Click to copy link or share with students"
           >
-            <span className="text-[10px] text-slate-400 font-sans font-normal hidden sm:inline">Room:</span>
+            <span className="text-[10px] text-slate-400 font-sans">Room:</span>
             <span className="font-bold text-indigo-700">{roomId}</span>
             <Copy className="w-3 h-3 text-slate-400" />
           </button>
 
-          {/* Multi-Student Boards Switcher */}
           {onOpenBoardManager && (
             <button
               onClick={onOpenBoardManager}
-              className="px-2.5 py-1 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs shrink-0"
-              title="Manage multiple student boards (switch boards or open in new tabs)"
+              className="px-2.5 py-1 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+              title="Manage multiple student boards"
             >
               <Layers className="w-3.5 h-3.5 text-indigo-600" />
               <span>Student Boards</span>
             </button>
           )}
 
-          {/* File & Export Dropdown */}
-          <div className="relative shrink-0">
+          <div className="relative">
             <button
               onClick={() => setShowFileMenu(!showFileMenu)}
-              className="px-2.5 py-1 text-xs font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors flex items-center gap-1 cursor-pointer"
+              className="px-2.5 py-1 text-xs font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors flex items-center gap-1 cursor-pointer bg-white"
             >
               <span>File & Export</span>
               <ChevronDown className="w-3 h-3 text-slate-400" />
@@ -275,34 +267,15 @@ export const TopBar: React.FC<TopBarProps> = ({
           </div>
         </div>
 
-        {/* Right: Reticle Toggle, Online Count, User Profile, Share */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          {/* Read-Only Indicator for Student */}
+        <div className="flex flex-wrap items-center gap-2">
           {isReadOnly && (
             <span className="px-2 py-0.5 rounded-full bg-amber-100 border border-amber-300 text-amber-800 text-[10px] font-semibold">
               View Only
             </span>
           )}
 
-          {/* On-Screen Reticle Preview Toggle */}
-          {onToggleCursorReticle && (
-            <button
-              onClick={onToggleCursorReticle}
-              className={`px-2 py-1 rounded-lg border transition-colors cursor-pointer flex items-center gap-1 text-xs shrink-0 ${
-                showCursorReticle
-                  ? 'bg-indigo-50 border-indigo-200 text-indigo-700 font-semibold'
-                  : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
-              }`}
-              title={showCursorReticle ? 'Pointer reticle active' : 'Pointer reticle hidden'}
-            >
-              <Eye className="w-3.5 h-3.5" />
-              <span className="text-[11px] hidden sm:inline">Reticle</span>
-            </button>
-          )}
-
-          {/* Online Count */}
           <div
-            className="flex items-center gap-1.5 px-2 py-1 bg-slate-100 rounded-lg text-slate-700 text-xs font-medium shrink-0"
+            className="flex items-center gap-1.5 px-2.5 py-1 bg-white rounded-lg border border-slate-200 text-slate-700 text-xs font-medium"
             title={`${onlineCount} active participant(s)`}
           >
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -310,26 +283,24 @@ export const TopBar: React.FC<TopBarProps> = ({
             <span className="font-mono text-xs font-bold">{onlineCount}</span>
           </div>
 
-          {/* User Profile */}
           <button
             onClick={onOpenUserProfile}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-medium transition-colors cursor-pointer shrink-0"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium transition-colors cursor-pointer"
             title="Change name and role"
           >
             <div
               className="w-3 h-3 rounded-full shrink-0"
               style={{ backgroundColor: currentUser.color }}
             />
-            <span className="max-w-[85px] sm:max-w-[110px] truncate">{currentUser.name}</span>
-            <span className="text-[10px] text-slate-400 hidden sm:inline">
+            <span className="max-w-[100px] truncate">{currentUser.name}</span>
+            <span className="text-[10px] text-slate-400">
               ({currentUser.role === 'teacher' ? 'Host' : 'Student'})
             </span>
           </button>
 
-          {/* Share Button */}
           <button
             onClick={onOpenShare}
-            className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+            className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
             title="Invite students with room link or code"
           >
             <Share2 className="w-3.5 h-3.5" />
@@ -338,45 +309,44 @@ export const TopBar: React.FC<TopBarProps> = ({
         </div>
       </div>
 
-      {/* Tier 2: ALL Drawing Tools, Quick Colors, Sizes, Shapes, Undo/Redo & Zoom Controls */}
-      {/* Designed with overflow-x-auto and low-profile scrollbar so NO OPTION IS EVER HIDDEN on any screen */}
-      <div className="min-h-11 px-2.5 sm:px-4 py-1.5 flex items-center gap-2 bg-slate-50/90 overflow-x-auto scrollbar-thin">
-        {/* Section 1: Navigation & Drawing Core Tools (Select, Pan, Pen, Highlighter, Eraser) */}
-        <div className="flex items-center gap-0.5 bg-white p-1 rounded-xl border border-slate-200 shadow-2xs shrink-0">
+      {/* Tier 2: ALL Drawing Tools, Colors, Sizes, Shapes, Undo/Redo & Zoom (Fully visible with flex-wrap, no hiding) */}
+      <div className="px-3 py-2 flex flex-wrap items-center gap-2.5 bg-white">
+        {/* Section 1: Navigation & Drawing Core Tools */}
+        <div className="flex items-center gap-0.5 bg-slate-50 p-1 rounded-xl border border-slate-200 shadow-2xs">
           <button
             onClick={() => onSelectTool('select')}
-            className={`px-2 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 cursor-pointer ${
+            className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 cursor-pointer ${
               activeTool === 'select'
                 ? 'bg-indigo-600 text-white shadow-xs'
-                : 'text-slate-700 hover:bg-slate-100'
+                : 'text-slate-700 hover:bg-white'
             }`}
             title="Select & Move Objects (V)"
           >
             <MousePointer2 className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">Select</span>
+            <span>Select</span>
           </button>
 
           <button
             onClick={() => onSelectTool('pan')}
-            className={`px-2 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 cursor-pointer ${
+            className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 cursor-pointer ${
               activeTool === 'pan'
                 ? 'bg-indigo-600 text-white shadow-xs'
-                : 'text-slate-700 hover:bg-slate-100'
+                : 'text-slate-700 hover:bg-white'
             }`}
-            title="Pan / Hand tool (H / Spacebar)"
+            title="Pan / Hand tool (H)"
           >
             <Hand className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">Pan</span>
+            <span>Pan</span>
           </button>
 
           <div className="w-px h-4 bg-slate-200 mx-0.5" />
 
           <button
             onClick={() => onSelectTool('pen')}
-            className={`px-2 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 cursor-pointer ${
+            className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 cursor-pointer ${
               activeTool === 'pen'
                 ? 'bg-indigo-600 text-white shadow-xs'
-                : 'text-slate-700 hover:bg-slate-100'
+                : 'text-slate-700 hover:bg-white'
             }`}
             title="Draw with Pen (P)"
           >
@@ -386,39 +356,39 @@ export const TopBar: React.FC<TopBarProps> = ({
 
           <button
             onClick={() => onSelectTool('highlighter')}
-            className={`px-2 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 cursor-pointer ${
+            className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 cursor-pointer ${
               activeTool === 'highlighter'
                 ? 'bg-indigo-600 text-white shadow-xs'
-                : 'text-slate-700 hover:bg-slate-100'
+                : 'text-slate-700 hover:bg-white'
             }`}
-            title="Highlighter (semi-transparent)"
+            title="Highlighter"
           >
             <Highlighter className="w-3.5 h-3.5 text-amber-500" />
-            <span className="hidden md:inline">Highlight</span>
+            <span>Highlight</span>
           </button>
 
           <button
             onClick={() => onSelectTool('eraser')}
-            className={`px-2 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 cursor-pointer ${
+            className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 cursor-pointer ${
               activeTool === 'eraser'
                 ? 'bg-indigo-600 text-white shadow-xs'
-                : 'text-slate-700 hover:bg-slate-100'
+                : 'text-slate-700 hover:bg-white'
             }`}
             title="Eraser (E)"
           >
             <Eraser className="w-3.5 h-3.5 text-rose-500" />
-            <span className="hidden md:inline">Eraser</span>
+            <span>Eraser</span>
           </button>
         </div>
 
-        {/* Section 2: Shapes (Rect, Circle, Line, Arrow) */}
-        <div className="flex items-center gap-0.5 bg-white p-1 rounded-xl border border-slate-200 shadow-2xs shrink-0">
+        {/* Section 2: Shapes */}
+        <div className="flex items-center gap-0.5 bg-slate-50 p-1 rounded-xl border border-slate-200 shadow-2xs">
           <button
             onClick={() => onSelectTool('rect')}
             className={`p-1.5 rounded-lg transition-all cursor-pointer ${
               activeTool === 'rect'
                 ? 'bg-indigo-600 text-white shadow-xs'
-                : 'text-slate-700 hover:bg-slate-100'
+                : 'text-slate-700 hover:bg-white'
             }`}
             title="Rectangle (R)"
           >
@@ -430,7 +400,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             className={`p-1.5 rounded-lg transition-all cursor-pointer ${
               activeTool === 'ellipse'
                 ? 'bg-indigo-600 text-white shadow-xs'
-                : 'text-slate-700 hover:bg-slate-100'
+                : 'text-slate-700 hover:bg-white'
             }`}
             title="Circle / Ellipse (O)"
           >
@@ -442,7 +412,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             className={`p-1.5 rounded-lg transition-all cursor-pointer ${
               activeTool === 'line'
                 ? 'bg-indigo-600 text-white shadow-xs'
-                : 'text-slate-700 hover:bg-slate-100'
+                : 'text-slate-700 hover:bg-white'
             }`}
             title="Line (L)"
           >
@@ -454,7 +424,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             className={`p-1.5 rounded-lg transition-all cursor-pointer ${
               activeTool === 'arrow'
                 ? 'bg-indigo-600 text-white shadow-xs'
-                : 'text-slate-700 hover:bg-slate-100'
+                : 'text-slate-700 hover:bg-white'
             }`}
             title="Arrow (A)"
           >
@@ -463,13 +433,13 @@ export const TopBar: React.FC<TopBarProps> = ({
         </div>
 
         {/* Section 3: Content (Text, Sticky, Image, PDF) */}
-        <div className="flex items-center gap-0.5 bg-white p-1 rounded-xl border border-slate-200 shadow-2xs shrink-0">
+        <div className="flex items-center gap-0.5 bg-slate-50 p-1 rounded-xl border border-slate-200 shadow-2xs">
           <button
             onClick={() => onSelectTool('text')}
-            className={`px-2 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 cursor-pointer ${
+            className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 cursor-pointer ${
               activeTool === 'text'
                 ? 'bg-indigo-600 text-white shadow-xs'
-                : 'text-slate-700 hover:bg-slate-100'
+                : 'text-slate-700 hover:bg-white'
             }`}
             title="Text Box (T)"
           >
@@ -479,10 +449,10 @@ export const TopBar: React.FC<TopBarProps> = ({
 
           <button
             onClick={() => onSelectTool('sticky')}
-            className={`px-2 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 cursor-pointer ${
+            className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 cursor-pointer ${
               activeTool === 'sticky'
                 ? 'bg-indigo-600 text-white shadow-xs'
-                : 'text-slate-700 hover:bg-slate-100'
+                : 'text-slate-700 hover:bg-white'
             }`}
             title="Sticky Note (S)"
           >
@@ -494,8 +464,8 @@ export const TopBar: React.FC<TopBarProps> = ({
 
           <button
             onClick={() => imageInputRef.current?.click()}
-            className="px-2 py-1 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors flex items-center gap-1 cursor-pointer"
-            title="Upload or Paste Image (PNG/JPG)"
+            className="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-700 hover:bg-white transition-colors flex items-center gap-1 cursor-pointer"
+            title="Upload Image"
           >
             <ImageIcon className="w-3.5 h-3.5 text-indigo-600" />
             <span>Image</span>
@@ -503,16 +473,16 @@ export const TopBar: React.FC<TopBarProps> = ({
 
           <button
             onClick={() => pdfInputRef.current?.click()}
-            className="px-2 py-1 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors flex items-center gap-1 cursor-pointer"
-            title="Upload PDF (Renders lecture slides/pages directly on board)"
+            className="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-700 hover:bg-white transition-colors flex items-center gap-1 cursor-pointer"
+            title="Upload PDF"
           >
             <FileText className="w-3.5 h-3.5 text-rose-600" />
             <span>PDF</span>
           </button>
         </div>
 
-        {/* Section 4: Color Swatches & Color Studio */}
-        <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-2xs shrink-0">
+        {/* Section 4: Color Swatches & Studio */}
+        <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-xl border border-slate-200 shadow-2xs">
           {PRIMARY_SWATCHES.map((c) => (
             <button
               key={c}
@@ -527,7 +497,6 @@ export const TopBar: React.FC<TopBarProps> = ({
             />
           ))}
 
-          {/* Color Palette Popover Trigger */}
           <div className="relative pl-1 border-l border-slate-200 ml-0.5">
             <button
               onClick={() => setShowColorPicker(!showColorPicker)}
@@ -566,8 +535,8 @@ export const TopBar: React.FC<TopBarProps> = ({
           </div>
         </div>
 
-        {/* Section 5: Stroke Width (S, M, L, XL + Slider + Exact Px) */}
-        <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-xl border border-slate-200 shadow-2xs shrink-0">
+        {/* Section 5: Stroke Width */}
+        <div className="flex items-center gap-1 bg-slate-50 px-2.5 py-1 rounded-xl border border-slate-200 shadow-2xs">
           <span className="text-[10px] font-bold text-slate-400">Size:</span>
           {[
             { label: 'S', val: 2 },
@@ -581,7 +550,7 @@ export const TopBar: React.FC<TopBarProps> = ({
               className={`px-1.5 py-0.5 text-[10px] font-bold rounded cursor-pointer transition-colors ${
                 strokeWidth === p.val
                   ? 'bg-indigo-600 text-white'
-                  : 'text-slate-600 hover:bg-slate-100'
+                  : 'text-slate-600 hover:bg-white'
               }`}
               title={`${p.label} (${p.val}px)`}
             >
@@ -604,10 +573,10 @@ export const TopBar: React.FC<TopBarProps> = ({
         {isShapeTool && (
           <button
             onClick={onToggleFillShape}
-            className={`px-2 py-1 rounded-xl text-xs font-semibold border transition-colors cursor-pointer shadow-2xs shrink-0 ${
+            className={`px-2.5 py-1 rounded-xl text-xs font-semibold border transition-colors cursor-pointer shadow-2xs ${
               fillShape
                 ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
-                : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-white'
             }`}
             title="Toggle shape fill style"
           >
@@ -616,29 +585,31 @@ export const TopBar: React.FC<TopBarProps> = ({
         )}
 
         {activeTool === 'sticky' && (
-          <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-2xs shrink-0">
+          <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-xl border border-slate-200 shadow-2xs">
             {STICKY_PALETTE.map((s) => (
               <button
                 key={s.name}
                 onClick={() => onSelectStickyColor(s.color)}
                 style={{ backgroundColor: s.color }}
-                className={`w-5 h-5 rounded-md transition-transform cursor-pointer ${
+                className={`w-5 h-5 rounded-md border border-slate-300 transition-transform cursor-pointer flex items-center justify-center ${
                   stickyColor === s.color
                     ? 'ring-2 ring-slate-800 scale-110'
                     : 'opacity-70 hover:opacity-100'
                 }`}
                 title={`${s.name} Note`}
-              />
+              >
+                {stickyColor === s.color && <Check className="w-3 h-3 text-slate-800" />}
+              </button>
             ))}
           </div>
         )}
 
-        {/* Section 7: History Undo & Redo */}
-        <div className="flex items-center gap-0.5 bg-white p-1 rounded-xl border border-slate-200 shadow-2xs shrink-0">
+        {/* Section 7: Undo & Redo */}
+        <div className="flex items-center gap-0.5 bg-slate-50 p-1 rounded-xl border border-slate-200 shadow-2xs">
           <button
             disabled={!canUndo}
             onClick={onUndo}
-            className="p-1 rounded text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
+            className="p-1 rounded text-slate-700 hover:bg-white disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
             title="Undo (Ctrl+Z)"
           >
             <Undo2 className="w-3.5 h-3.5" />
@@ -646,33 +617,33 @@ export const TopBar: React.FC<TopBarProps> = ({
           <button
             disabled={!canRedo}
             onClick={onRedo}
-            className="p-1 rounded text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
+            className="p-1 rounded text-slate-700 hover:bg-white disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
             title="Redo (Ctrl+Y)"
           >
             <Redo2 className="w-3.5 h-3.5" />
           </button>
         </div>
 
-        {/* Section 8: Canvas Zoom Controls */}
+        {/* Section 8: Zoom Controls */}
         {onZoomIn && onZoomOut && (
-          <div className="flex items-center gap-0.5 bg-white p-1 rounded-xl border border-slate-200 shadow-2xs shrink-0">
+          <div className="flex items-center gap-0.5 bg-slate-50 p-1 rounded-xl border border-slate-200 shadow-2xs">
             <button
               onClick={onZoomOut}
-              className="p-1 rounded text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              className="p-1 rounded text-slate-700 hover:bg-white transition-colors cursor-pointer"
               title="Zoom Out (-)"
             >
               <ZoomOut className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={onResetZoom}
-              className="px-1.5 py-0.5 rounded text-[11px] font-mono font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              className="px-1.5 py-0.5 rounded text-[11px] font-mono font-bold text-slate-700 hover:bg-white transition-colors cursor-pointer"
               title="Reset Zoom to 100%"
             >
               {Math.round((zoom || 1) * 100)}%
             </button>
             <button
               onClick={onZoomIn}
-              className="p-1 rounded text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              className="p-1 rounded text-slate-700 hover:bg-white transition-colors cursor-pointer"
               title="Zoom In (+)"
             >
               <ZoomIn className="w-3.5 h-3.5" />
@@ -681,7 +652,7 @@ export const TopBar: React.FC<TopBarProps> = ({
         )}
       </div>
 
-      {/* Hidden File Inputs for Image, PDF, and JSON */}
+      {/* Hidden File Inputs */}
       <input
         ref={imageInputRef}
         type="file"
@@ -704,7 +675,6 @@ export const TopBar: React.FC<TopBarProps> = ({
         onChange={onImportJSON}
       />
 
-      {/* GitHub Setup Modal */}
       <GithubModal
         isOpen={showGithubModal}
         onClose={() => setShowGithubModal(false)}

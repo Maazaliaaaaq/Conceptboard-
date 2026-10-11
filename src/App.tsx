@@ -624,9 +624,8 @@ export default function App() {
         onZoomOut={handleZoomOut}
         onResetZoom={handleResetZoom}
         onOpenBoardManager={() => setIsBoardManagerOpen(true)}
-        showCursorReticle={showCursorReticle}
-        onToggleCursorReticle={() => setShowCursorReticle((prev) => !prev)}
       />
+
 
       {/* Main Canvas Area: Clean, Spacious, & Unobstructed */}
       <div className="relative flex-1 w-full h-full overflow-hidden">
