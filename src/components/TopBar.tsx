@@ -65,6 +65,7 @@ export interface TopBarProps {
   onZoomOut?: () => void;
   onResetZoom?: () => void;
   onOpenBoardManager?: () => void;
+  quotaExceeded?: boolean;
 }
 
 const PRIMARY_SWATCHES = [
@@ -134,6 +135,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   onZoomOut,
   onResetZoom,
   onOpenBoardManager,
+  quotaExceeded,
 }) => {
   const [showFileMenu, setShowFileMenu] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -181,6 +183,13 @@ export const TopBar: React.FC<TopBarProps> = ({
               <Layers className="w-3.5 h-3.5 text-indigo-600" />
               <span>Student Boards</span>
             </button>
+          )}
+
+          {currentUser.role === 'teacher' && quotaExceeded && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-100 border border-amber-300 text-amber-900 rounded-lg text-xs font-semibold animate-pulse shadow-xs" title="Firebase daily free write quota limit reached. Running in seamless local sync mode.">
+              <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+              <span>⚡ Firebase Limit Reached (Local Mode)</span>
+            </div>
           )}
 
           <div className="relative">

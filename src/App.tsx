@@ -118,6 +118,21 @@ export default function App() {
     createdAt: Date.now(),
   });
 
+  // Toasts
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  const addToast = useCallback((text: string, type: 'success' | 'info' | 'error' = 'info') => {
+    const id = `toast_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    setToasts((prev) => [...prev, { id, text, type }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 3200);
+  }, []);
+
+  const dismissToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
+
   // Modals
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isFirebaseOpen, setIsFirebaseOpen] = useState(false);
@@ -135,9 +150,12 @@ export default function App() {
   useEffect(() => {
     const unsub = subscribeToQuotaExceeded((exceeded) => {
       setQuotaExceeded(exceeded);
+      if (exceeded) {
+        addToast('⚠️ Firebase quota limit reached. Switched to local sync mode.', 'error');
+      }
     });
     return () => unsub();
-  }, []);
+  }, [addToast]);
 
   // Canvas Pan & Zoom state kept in sync for live cursor projection
   const [canvasPan, setCanvasPan] = useState<Point>({ x: 100, y: 100 });
@@ -206,20 +224,7 @@ export default function App() {
     };
   }, [isSimulatingStudent]);
 
-  // Toasts
-  const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
-  const addToast = useCallback((text: string, type: 'success' | 'info' | 'error' = 'info') => {
-    const id = `toast_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-    setToasts((prev) => [...prev, { id, text, type }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 3200);
-  }, []);
-
-  const dismissToast = (id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  };
 
   // Sync URL search query param without reload
   useEffect(() => {
@@ -649,6 +654,7 @@ export default function App() {
         onZoomOut={handleZoomOut}
         onResetZoom={handleResetZoom}
         onOpenBoardManager={() => setIsBoardManagerOpen(true)}
+        quotaExceeded={quotaExceeded}
       />
 
 
