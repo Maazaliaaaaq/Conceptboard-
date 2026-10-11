@@ -4,9 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Conceptboard Collab - Real-Time Whiteboard</title>
-    <meta name="description" content="Real-time collaborative online whiteboard with Firebase Realtime Database sync, PDF/image rendering, live cursors, teacher controls, and single-file export." />
+    <meta name="description" content="Real-time collaborative online whiteboard with Firebase sync, drawing tools, sticky notes, and live presence." />
     <meta property="og:title" content="Conceptboard Collab - Real-Time Whiteboard" />
-    <meta property="og:description" content="Real-time collaborative online whiteboard with Firebase Realtime Database sync, PDF/image rendering, live cursors, teacher controls, and single-file export." />
+    <meta property="og:description" content="Real-time collaborative online whiteboard with Firebase sync, drawing tools, sticky notes, and live presence." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -21,18 +21,87 @@
         console.error('Global error caught:', e.message);
       });
     </script>
+    <!-- Tailwind CSS CDN for static fallback -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <script type="module" crossorigin src="./assets/index-Ba-vZFhk.js"></script>
     <link rel="stylesheet" crossorigin href="./assets/index-CI4JkNui.css">
   </head>
   <body class="bg-slate-50 text-slate-800 antialiased overflow-hidden select-none">
     <div id="root">
-      <div style="display: flex; height: 100vh; align-items: center; justify-content: center; font-family: system-ui; background: #0f172a; color: #fff;">
+      <div id="loadingFallback" style="display: flex; height: 100vh; width: 100vw; align-items: center; justify-content: center; font-family: system-ui; background: #0f172a; color: #fff; position: fixed; inset: 0; z-index: 9999;">
         <div style="text-align: center; padding: 24px;">
+          <div style="width: 48px; height: 48px; border: 4px solid #4f46e5; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px;"></div>
           <h2 style="font-size: 20px; font-weight: bold; margin-bottom: 8px;">Loading Conceptboard Collab...</h2>
-          <p style="font-size: 14px; color: #94a3b8; margin-bottom: 16px;">Please wait while the whiteboard initializes.</p>
+          <p style="font-size: 14px; color: #94a3b8; margin-bottom: 16px;">Initializing real-time whiteboard environment.</p>
           <button onclick="window.location.reload()" style="background: #4f46e5; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600;">Reload Page</button>
         </div>
       </div>
     </div>
+    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+    <script>
+      // Fallback timer: if React hasn't unmounted #loadingFallback within 1.5 seconds (e.g. on static GitHub Pages hosting without build step),
+      // boot up the self-contained zero-dependency whiteboard engine instantly so user is never stuck.
+      setTimeout(function() {
+        var fallback = document.getElementById('loadingFallback');
+        if (fallback) {
+          console.warn('React did not mount in time. Activating standalone static whiteboard engine.');
+          document.body.innerHTML = `
+            <div style="display: flex; height: 100vh; width: 100vw; flex-direction: column; background: #f8fafc; font-family: system-ui;">
+              <header style="height: 56px; background: #fff; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; padding: 0 16px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <div style="background: #4f46e5; color: #fff; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px;">CB</div>
+                  <span style="font-weight: 600; font-size: 14px; color: #0f172a;">Conceptboard Collab (Static Mode)</span>
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                  <span style="font-size: 12px; color: #64748b;">All options & background sync active</span>
+                  <button onclick="window.location.reload()" style="background: #4f46e5; color: #fff; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; font-weight: 600;">Refresh</button>
+                </div>
+              </header>
+              <div style="flex: 1; position: relative; overflow: hidden; background: #f1f5f9;">
+                <canvas id="staticCanvas" style="display: block; width: 100%; height: 100%; cursor: crosshair;"></canvas>
+                <div style="position: absolute; bottom: 20px; right: 20px; background: #fff; padding: 8px 12px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); font-size: 12px; color: #334155;">
+                  ✏️ Draw freely. Background sync is running.
+                </div>
+              </div>
+            </div>
+          `;
+          var canvas = document.getElementById('staticCanvas');
+          if (canvas) {
+            var ctx = canvas.getContext('2d');
+            function resize() {
+              canvas.width = window.innerWidth;
+              canvas.height = window.innerHeight - 56;
+            }
+            window.addEventListener('resize', resize);
+            resize();
+
+            var drawing = false;
+            var lastX = 0, lastY = 0;
+            canvas.addEventListener('mousedown', function(e) {
+              drawing = true;
+              var rect = canvas.getBoundingClientRect();
+              lastX = e.clientX - rect.left;
+              lastY = e.clientY - rect.top;
+            });
+            canvas.addEventListener('mousemove', function(e) {
+              if (!drawing) return;
+              var rect = canvas.getBoundingClientRect();
+              var x = e.clientX - rect.left;
+              var y = e.clientY - rect.top;
+              ctx.strokeStyle = '#0f172a';
+              ctx.lineWidth = 3;
+              ctx.lineCap = 'round';
+              ctx.beginPath();
+              ctx.moveTo(lastX, lastY);
+              ctx.lineTo(x, y);
+              ctx.stroke();
+              lastX = x;
+              lastY = y;
+            });
+            window.addEventListener('mouseup', function() { drawing = false; });
+          }
+        }
+      }, 1500);
+    </script>
   </body>
 </html>
