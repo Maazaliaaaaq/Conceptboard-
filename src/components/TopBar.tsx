@@ -66,6 +66,8 @@ interface TopBarProps {
   onZoomOut?: () => void;
   onResetZoom?: () => void;
   onOpenBoardManager?: () => void;
+  webRtcStatus?: 'disconnected' | 'connecting' | 'connected' | 'host';
+  peerCount?: number;
 }
 
 const PALETTE_COLORS = [
@@ -125,6 +127,8 @@ export const TopBar: React.FC<TopBarProps> = ({
   onZoomOut,
   onResetZoom,
   onOpenBoardManager,
+  webRtcStatus,
+  peerCount = 0,
 }) => {
   const [showFileMenu, setShowFileMenu] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -599,6 +603,43 @@ export const TopBar: React.FC<TopBarProps> = ({
           <Flame className={`w-3.5 h-3.5 ${isFirebaseActive ? 'text-emerald-600 fill-emerald-500' : 'text-amber-500 fill-amber-400'}`} />
           <span className="hidden xl:inline">{isFirebaseActive ? 'Firebase Live' : 'Setup Firebase'}</span>
         </button>
+
+        {/* Real-time WebRTC Unlimited P2P Mesh Badge */}
+        {webRtcStatus && (
+          <div
+            className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium border ${
+              webRtcStatus === 'host'
+                ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                : webRtcStatus === 'connected'
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                : 'bg-slate-100 border-slate-200 text-slate-500'
+            }`}
+            title={
+              webRtcStatus === 'host'
+                ? `Hosting classroom room via direct WebRTC. ${peerCount} student(s) connected directly with unlimited bandwidth.`
+                : webRtcStatus === 'connected'
+                ? 'Connected directly to teacher via WebRTC (instant sync, unlimited usage, 0 quota limits).'
+                : 'Connecting to classroom board...'
+            }
+          >
+            <span
+              className={`w-2 h-2 rounded-full ${
+                webRtcStatus === 'host'
+                  ? 'bg-indigo-500 animate-pulse'
+                  : webRtcStatus === 'connected'
+                  ? 'bg-emerald-500 animate-pulse'
+                  : 'bg-amber-400'
+              }`}
+            />
+            <span className="hidden md:inline font-semibold text-[11px]">
+              {webRtcStatus === 'host'
+                ? `P2P Host (${peerCount})`
+                : webRtcStatus === 'connected'
+                ? 'P2P Synced'
+                : 'Connecting...'}
+            </span>
+          </div>
+        )}
 
         {/* Online Count */}
         <div

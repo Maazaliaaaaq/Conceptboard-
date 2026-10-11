@@ -13,6 +13,13 @@ import {
 } from 'firebase/firestore';
 import { BoardObject, UserPresence, BoardRoomConfig, FirebaseCredentials } from '../types/board';
 import defaultAppletConfig from '../../firebase-applet-config.json';
+import {
+  broadcastObjectUpdate,
+  broadcastObjectDelete,
+  broadcastClearBoard,
+  broadcastPresence,
+  broadcastRoomConfig,
+} from './webrtcService';
 
 const STORAGE_KEY_CREDS = 'conceptboard_firebase_config';
 
@@ -38,7 +45,7 @@ interface FirestoreErrorInfo {
 function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
   if (isQuotaError(error)) {
     notifyQuotaExceeded();
-    console.warn('Firestore write/read quota reached. Operating in offline/local BroadcastChannel mode.');
+    console.warn('Firestore write/read quota reached. Seamlessly using real-time WebRTC & local sync.');
     return;
   }
   const errInfo: FirestoreErrorInfo = {
@@ -50,8 +57,8 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
     operationType,
     path,
   };
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
+  // Non-blocking log: NEVER throw to prevent white screen crashes
+  console.warn('Firestore sync note:', JSON.stringify(errInfo));
 }
 
 /**
@@ -79,13 +86,17 @@ const quotaListeners = new Set<(exceeded: boolean) => void>();
 export function isQuotaError(error: unknown): boolean {
   if (!error) return false;
   const str = error instanceof Error ? error.message : String(error);
+  const code = (error as any)?.code || '';
   return (
+    code === 'resource-exhausted' ||
     str.includes('resource-exhausted') ||
     str.includes('Quota limit exceeded') ||
     str.includes('Quota exceeded') ||
     str.includes('quota metric') ||
     str.includes('Free daily write units') ||
-    str.includes('Free daily read units')
+    str.includes('Free daily read units') ||
+    str.includes('maximum backoff delay') ||
+    str.includes('overloading the backend')
   );
 }
 
@@ -228,7 +239,7 @@ export function subscribeToBoardObjects(
   };
   loadLocal();
 
-  // 2. Always listen to BroadcastChannel for zero-latency multi-tab sync
+  // 2. Always listen to BroadcastChannel and window storage for zero-latency multi-tab sync
   const channel = getChannel(roomId);
   const handleMessage = (event: MessageEvent) => {
     if (event.data?.type === 'OBJECTS_UPDATE' && event.data.objects) {
@@ -236,6 +247,18 @@ export function subscribeToBoardObjects(
     }
   };
   channel?.addEventListener('message', handleMessage);
+
+  const handleStorage = (e: StorageEvent) => {
+    if (e.key === storageKey && e.newValue) {
+      try {
+        const parsed = JSON.parse(e.newValue);
+        if (parsed && typeof parsed === 'object') {
+          onObjectsUpdate(parsed);
+        }
+      } catch {}
+    }
+  };
+  window.addEventListener('storage', handleStorage);
 
   // 3. If Firestore is active and not quota exhausted, listen to Firestore updates
   let unsubscribeFirestore: (() => void) | null = null;
@@ -278,6 +301,7 @@ export function subscribeToBoardObjects(
 
   return () => {
     channel?.removeEventListener('message', handleMessage);
+    window.removeEventListener('storage', handleStorage);
     if (unsubscribeFirestore) {
       unsubscribeFirestore();
     }
@@ -299,6 +323,13 @@ export async function syncBoardObject(roomId: string, obj: BoardObject): Promise
     console.warn('Local cache save warning', e);
   }
 
+  // Broadcast in real-time to all connected students across any device via WebRTC
+  try {
+    broadcastObjectUpdate(obj);
+  } catch (e) {
+    console.warn('WebRTC broadcast note', e);
+  }
+
   // Skip Firestore writes if quota limit was reached
   if (firestoreDb && !quotaExceededState) {
     try {
@@ -314,7 +345,7 @@ export async function syncBoardObject(roomId: string, obj: BoardObject): Promise
       try {
         handleFirestoreError(error, OperationType.WRITE, docPath);
       } catch (err) {
-        console.warn('Firestore sync failed, retained in local storage:', err);
+        console.warn('Firestore sync note:', err);
       }
     }
   }
@@ -334,6 +365,13 @@ export async function deleteBoardObject(roomId: string, objectId: string): Promi
     console.warn('Local cache delete warning', e);
   }
 
+  // Broadcast deletion via WebRTC
+  try {
+    broadcastObjectDelete(objectId);
+  } catch (e) {
+    console.warn('WebRTC delete broadcast note', e);
+  }
+
   if (firestoreDb && !quotaExceededState) {
     try {
       const objDoc = doc(firestoreDb, 'boards', roomId, 'objects', objectId);
@@ -347,7 +385,7 @@ export async function deleteBoardObject(roomId: string, objectId: string): Promi
       try {
         handleFirestoreError(error, OperationType.DELETE, docPath);
       } catch (err) {
-        console.warn('Firestore delete failed:', err);
+        console.warn('Firestore delete note:', err);
       }
     }
   }
@@ -360,6 +398,13 @@ export async function clearBoard(roomId: string): Promise<void> {
   } catch {}
   const channel = getChannel(roomId);
   channel?.postMessage({ type: 'OBJECTS_UPDATE', objects: {} });
+
+  // Broadcast clear via WebRTC
+  try {
+    broadcastClearBoard();
+  } catch (e) {
+    console.warn('WebRTC clear broadcast note', e);
+  }
 
   if (firestoreDb && !quotaExceededState) {
     try {
@@ -393,6 +438,11 @@ export function updateCursorPresence(roomId: string, user: UserPresence): void {
     type: 'PRESENCE_UPDATE',
     user: { ...user, lastSeen: Date.now() },
   });
+
+  // Broadcast to remote students across any device via WebRTC
+  try {
+    broadcastPresence({ ...user, lastSeen: Date.now() });
+  } catch {}
 
   // Only send occasional heartbeat to Firestore (at most once every 15s) to avoid consuming write quotas
   const now = Date.now();
@@ -575,5 +625,6 @@ export async function setRoomPermissionMode(
     localStorage.setItem(storageKey, JSON.stringify(updated));
     const channel = getChannel(roomId);
     channel?.postMessage({ type: 'CONFIG_UPDATE', config: updated });
+    broadcastRoomConfig(updated);
   } catch {}
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Layers, ArrowRight, Trash2, Edit2, Check, Share2, HelpCircle, Sparkles } from 'lucide-react';
+import { X, Plus, Layers, ArrowRight, Trash2, Edit2, Check, Share2, HelpCircle, Sparkles, ExternalLink } from 'lucide-react';
 
 export interface BoardRoomMeta {
   id: string;
@@ -111,6 +111,23 @@ export const BoardManagerModal: React.FC<BoardManagerModalProps> = ({
     onClose();
   };
 
+  const handleQuickSetup3Students = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const genId = () => {
+      let res = '';
+      for (let i = 0; i < 6; i++) res += chars.charAt(Math.floor(Math.random() * chars.length));
+      return res;
+    };
+    const newItems: BoardRoomMeta[] = [
+      { id: genId(), name: 'Student 1 - Board', description: 'Dedicated personal board for Student 1', createdAt: Date.now(), lastUsedAt: Date.now() },
+      { id: genId(), name: 'Student 2 - Board', description: 'Dedicated personal board for Student 2', createdAt: Date.now(), lastUsedAt: Date.now() },
+      { id: genId(), name: 'Student 3 - Board', description: 'Dedicated personal board for Student 3', createdAt: Date.now(), lastUsedAt: Date.now() },
+    ];
+    const updated = [...boards, ...newItems];
+    saveBoards(updated);
+    onToast('Created boards for Student 1, Student 2, and Student 3!', 'success');
+  };
+
   const handleDeleteBoard = (id: string, name: string) => {
     if (boards.length <= 1) {
       onToast('You must keep at least one board.', 'error');
@@ -179,13 +196,25 @@ export const BoardManagerModal: React.FC<BoardManagerModalProps> = ({
               <span className="font-semibold text-slate-800 text-xs">
                 Your Classroom Boards ({boards.length})
               </span>
-              <button
-                onClick={() => setIsCreating(true)}
-                className="px-3 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>+ New Student Board</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleQuickSetup3Students}
+                  className="px-2.5 py-1.5 text-xs font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                  title="Quickly generate 3 separate student boards at once"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Setup 3 Students</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsCreating(true)}
+                  className="px-3 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>+ New Board</span>
+                </button>
+              </div>
             </div>
           ) : (
             <form onSubmit={handleCreateBoard} className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
@@ -335,6 +364,16 @@ export const BoardManagerModal: React.FC<BoardManagerModalProps> = ({
                     >
                       <Share2 className="w-3.5 h-3.5" />
                     </button>
+
+                    <a
+                      href={`${window.location.origin}${window.location.pathname}?room=${b.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg cursor-pointer flex items-center"
+                      title="Open this board in new browser tab / split screen"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
 
                     {isCurrent ? (
                       <span className="px-2.5 py-1 text-xs font-semibold text-indigo-700 bg-indigo-100/70 rounded-lg flex items-center gap-1">

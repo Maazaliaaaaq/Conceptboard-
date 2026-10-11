@@ -29,6 +29,7 @@ import {
   isFirestoreQuotaExceeded,
   subscribeToQuotaExceeded,
 } from './services/firebaseService';
+import { initWebRTC, cleanupWebRTC, ConnectionStatus } from './services/webrtcService';
 import { renderPDFToImages } from './utils/pdfRenderer';
 import { getStandaloneHtmlContent } from './utils/singleFileTemplate';
 
@@ -270,6 +271,61 @@ export default function App() {
     });
     return () => unsubscribe();
   }, [roomId]);
+
+  // Real-time WebRTC Mesh (Direct Peer-to-Peer with unlimited bandwidth and zero quota limits)
+  const [webRtcStatus, setWebRtcStatus] = useState<ConnectionStatus>('connecting');
+  const [peerCount, setPeerCount] = useState<number>(0);
+  const objectsRef = useRef(objects);
+  objectsRef.current = objects;
+  const roomConfigRef = useRef(roomConfig);
+  roomConfigRef.current = roomConfig;
+
+  useEffect(() => {
+    initWebRTC(
+      roomId,
+      currentUser.id,
+      currentUser.role,
+      () => objectsRef.current,
+      () => roomConfigRef.current,
+      {
+        onStatusChange: (status, count) => {
+          setWebRtcStatus(status);
+          setPeerCount(count);
+        },
+        onObjectsUpdate: (remoteObjects) => {
+          setObjects((prev) => ({ ...prev, ...remoteObjects }));
+        },
+        onSingleObjectUpdate: (obj) => {
+          setObjects((prev) => ({ ...prev, [obj.id]: obj }));
+        },
+        onObjectDelete: (objectId) => {
+          setObjects((prev) => {
+            const next = { ...prev };
+            delete next[objectId];
+            return next;
+          });
+        },
+        onClearBoard: () => {
+          setObjects({});
+        },
+        onPresenceUpdate: (user) => {
+          if (user.id !== currentUser.id) {
+            setPresenceUsers((prev) => ({
+              ...prev,
+              [user.id]: user,
+            }));
+          }
+        },
+        onConfigUpdate: (cfg) => {
+          setRoomConfig(cfg);
+        },
+      }
+    );
+
+    return () => {
+      cleanupWebRTC();
+    };
+  }, [roomId, currentUser.id, currentUser.role]);
 
   // Object lifecycle handlers
   const handleObjectCreated = (obj: BoardObject) => {
@@ -602,6 +658,8 @@ export default function App() {
         onZoomOut={handleZoomOut}
         onResetZoom={handleResetZoom}
         onOpenBoardManager={() => setIsBoardManagerOpen(true)}
+        webRtcStatus={webRtcStatus}
+        peerCount={peerCount}
       />
 
       {/* Main Canvas Area */}

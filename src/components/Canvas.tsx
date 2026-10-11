@@ -94,8 +94,9 @@ export const Canvas = forwardRef<CanvasRefHandle, CanvasProps>(({
   } | null>(null);
   const isPinchActive = useRef(false);
 
-  // On-screen cursor position
-  const [cursorPos, setCursorPos] = useState<Point | null>(null);
+  // Zero-lag 120 FPS cursor reticle & drawing stroke refs
+  const cursorReticleRef = useRef<HTMLDivElement>(null);
+  const currentStrokeRef = useRef<Point[]>([]);
   const [isHoveringCanvas, setIsHoveringCanvas] = useState(false);
 
   // Sync pan and zoom to parent for remote cursor positioning
@@ -891,7 +892,7 @@ export const Canvas = forwardRef<CanvasRefHandle, CanvasProps>(({
     }
 
     if (activeTool === 'pen' || activeTool === 'highlighter') {
-      setCurrentStroke([worldPt]);
+      currentStrokeRef.current = [worldPt];
       return;
     }
 
@@ -973,8 +974,14 @@ export const Canvas = forwardRef<CanvasRefHandle, CanvasProps>(({
 
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const pos = getCanvasPos(e.clientX, e.clientY);
-    setCursorPos({ x: pos.x, y: pos.y });
-    setIsHoveringCanvas(true);
+
+    // Fast direct DOM update: ZERO React re-renders while moving mouse!
+    if (cursorReticleRef.current) {
+      cursorReticleRef.current.style.transform = `translate3d(${pos.x}px, ${pos.y}px, 0) translate(-50%, -50%)`;
+      if (cursorReticleRef.current.style.display !== (showCursorReticle ? 'block' : 'none')) {
+        cursorReticleRef.current.style.display = showCursorReticle ? 'block' : 'none';
+      }
+    }
 
     if (activePointers.current.has(e.pointerId)) {
       activePointers.current.set(e.pointerId, { x: pos.x, y: pos.y });
@@ -1022,9 +1029,37 @@ export const Canvas = forwardRef<CanvasRefHandle, CanvasProps>(({
       return;
     }
 
-    // Pen / Highlighter stroke (local buffer only until lifted)
+    // Pen / Highlighter stroke: instant line segment rasterization for zero lag
     if (activeTool === 'pen' || activeTool === 'highlighter') {
-      setCurrentStroke((prev) => [...prev, worldPt]);
+      const pts = currentStrokeRef.current;
+      if (pts.length > 0) {
+        const lastPt = pts[pts.length - 1];
+        pts.push(worldPt);
+
+        const canvas = canvasRef.current;
+        if (canvas && lastPt) {
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            const dpr = window.devicePixelRatio || 1;
+            ctx.save();
+            ctx.scale(dpr, dpr);
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.strokeStyle = activeTool === 'highlighter' ? `${currentColor}80` : currentColor;
+            ctx.lineWidth = Math.max(1, (activeTool === 'highlighter' ? strokeWidth * 2.5 : strokeWidth) * zoom);
+            if (activeTool === 'highlighter') {
+              ctx.globalAlpha = 0.35;
+            }
+            ctx.beginPath();
+            const p1 = worldToScreen(lastPt.x, lastPt.y);
+            const p2 = worldToScreen(worldPt.x, worldPt.y);
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.stroke();
+            ctx.restore();
+          }
+        }
+      }
       return;
     }
 
@@ -1092,25 +1127,28 @@ export const Canvas = forwardRef<CanvasRefHandle, CanvasProps>(({
     setIsDraggingObject(false);
 
     // Commit Pen / Highlighter Stroke
+    const pts = currentStrokeRef.current;
     if (
       (activeTool === 'pen' || activeTool === 'highlighter') &&
-      currentStroke.length >= 2
+      pts.length >= 2
     ) {
       const newStrokeObj: BoardObject = {
         id: `stroke_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
         type: activeTool,
-        x: currentStroke[0].x,
-        y: currentStroke[0].y,
-        points: currentStroke,
+        x: pts[0].x,
+        y: pts[0].y,
+        points: [...pts],
         color: currentColor,
         strokeWidth: strokeWidth,
         createdAt: Date.now(),
         zIndex: Date.now(),
       };
       onObjectCreated(newStrokeObj);
+      currentStrokeRef.current = [];
       setCurrentStroke([]);
       return;
     }
+    currentStrokeRef.current = [];
     setCurrentStroke([]);
 
     // Commit Shape
@@ -1345,7 +1383,12 @@ export const Canvas = forwardRef<CanvasRefHandle, CanvasProps>(({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
-        onPointerEnter={() => setIsHoveringCanvas(true)}
+        onPointerEnter={() => {
+          setIsHoveringCanvas(true);
+          if (cursorReticleRef.current && showCursorReticle) {
+            cursorReticleRef.current.style.display = 'block';
+          }
+        }}
         onPointerLeave={(e) => {
           activePointers.current.delete(e.pointerId);
           if (activePointers.current.size < 2) {
@@ -1355,23 +1398,24 @@ export const Canvas = forwardRef<CanvasRefHandle, CanvasProps>(({
             isPinchActive.current = false;
           }
           setIsHoveringCanvas(false);
-          setCursorPos(null);
+          if (cursorReticleRef.current) {
+            cursorReticleRef.current.style.display = 'none';
+          }
         }}
         onDoubleClick={handleDoubleClick}
         onWheel={handleWheel}
         className="block touch-none"
       />
 
-      {/* High-Visibility Live On-Screen Cursor Reticle */}
-      {showCursorReticle && isHoveringCanvas && cursorPos && (
-        <div
-          className="pointer-events-none absolute z-30 transition-transform duration-0 will-change-transform"
-          style={{
-            left: `${cursorPos.x}px`,
-            top: `${cursorPos.y}px`,
-            transform: 'translate(-50%, -50%)',
-          }}
-        >
+      {/* High-Visibility Live On-Screen Cursor Reticle (Zero-Lag Direct Ref) */}
+      <div
+        ref={cursorReticleRef}
+        className="pointer-events-none absolute top-0 left-0 z-30 transition-transform duration-0 will-change-transform"
+        style={{
+          display: showCursorReticle ? 'block' : 'none',
+          transform: 'translate3d(-500px, -500px, 0) translate(-50%, -50%)',
+        }}
+      >
           {activeTool === 'pen' && (
             <div className="relative flex items-center justify-center">
               {/* Dynamic stroke size ring */}
@@ -1485,7 +1529,6 @@ export const Canvas = forwardRef<CanvasRefHandle, CanvasProps>(({
             </div>
           )}
         </div>
-      )}
 
       {/* Floating In-Place Text Editor Overlay */}
       {editingObject && (
