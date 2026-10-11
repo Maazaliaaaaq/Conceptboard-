@@ -1,5 +1,6 @@
 import Peer, { DataConnection } from 'peerjs';
 import { BoardObject, UserPresence, BoardRoomConfig } from '../types/board';
+import { sanitizeBoardObject, sanitizeObjectsRecord } from '../utils/boardSanitizer';
 
 export interface WebRTCMessage {
   type: 'FULL_SYNC' | 'OBJECT_UPDATE' | 'OBJECT_DELETE' | 'CLEAR_BOARD' | 'PRESENCE_UPDATE' | 'CONFIG_UPDATE' | 'PING';
@@ -50,7 +51,7 @@ function handleIncomingMessage(msg: WebRTCMessage, conn: DataConnection) {
   switch (msg.type) {
     case 'FULL_SYNC':
       if (msg.objects && objectsCallback) {
-        objectsCallback(msg.objects);
+        objectsCallback(sanitizeObjectsRecord(msg.objects));
       }
       if (msg.config && configCallback) {
         configCallback(msg.config);
@@ -59,12 +60,13 @@ function handleIncomingMessage(msg: WebRTCMessage, conn: DataConnection) {
 
     case 'OBJECT_UPDATE':
       if (msg.object) {
-        if (singleObjectCallback) {
-          singleObjectCallback(msg.object);
+        const clean = sanitizeBoardObject(msg.object);
+        if (clean && singleObjectCallback) {
+          singleObjectCallback(clean);
         }
         // If host, relay to other connected students
-        if (isHost) {
-          relayToOthers(msg, conn.peer);
+        if (isHost && clean) {
+          relayToOthers({ ...msg, object: clean }, conn.peer);
         }
       }
       break;
@@ -188,61 +190,70 @@ export function initWebRTC(
 
 function startAsHost(hostPeerId: string, cleanRoom: string) {
   isHost = true;
-  peerInstance = new Peer(hostPeerId, {
-    debug: 0,
-    config: {
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-        { urls: 'stun:stun2.l.google.com:19302' },
-      ],
-    },
-  });
+  try {
+    peerInstance = new Peer(hostPeerId, {
+      debug: 0,
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' },
+        ],
+      },
+    });
 
-  peerInstance.on('open', () => {
-    notifyStatus('host');
-  });
+    peerInstance.on('open', () => {
+      notifyStatus('host');
+    });
 
-  peerInstance.on('connection', (conn) => {
-    setupConnection(conn, true);
-  });
+    peerInstance.on('connection', (conn) => {
+      setupConnection(conn, true);
+    });
 
-  peerInstance.on('error', (err: any) => {
-    // If host ID is unavailable (e.g. tab refreshed before timeout), join as client peer
-    if (err.type === 'unavailable-id') {
-      peerInstance?.destroy();
-      startAsStudent(cleanRoom, hostPeerId);
-      return;
-    }
-    console.warn('WebRTC Host error:', err);
-  });
+    peerInstance.on('error', (err: any) => {
+      // If host ID is unavailable (e.g. tab refreshed before timeout), join as client peer
+      if (err.type === 'unavailable-id') {
+        try { peerInstance?.destroy(); } catch {}
+        startAsStudent(cleanRoom, hostPeerId);
+        return;
+      }
+      console.warn('WebRTC Host error:', err);
+    });
+  } catch (err) {
+    console.warn('Failed to construct WebRTC Host:', err);
+    startAsStudent(cleanRoom, hostPeerId);
+  }
 }
 
 function startAsStudent(cleanRoom: string, hostPeerId: string) {
   isHost = false;
   const studentPeerId = `cb-${cleanRoom}-${Math.random().toString(36).slice(2, 8)}`;
-  peerInstance = new Peer(studentPeerId, {
-    debug: 0,
-    config: {
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-        { urls: 'stun:stun2.l.google.com:19302' },
-      ],
-    },
-  });
+  try {
+    peerInstance = new Peer(studentPeerId, {
+      debug: 0,
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' },
+        ],
+      },
+    });
 
-  peerInstance.on('open', () => {
-    connectToHost(hostPeerId);
-  });
+    peerInstance.on('open', () => {
+      connectToHost(hostPeerId);
+    });
 
-  peerInstance.on('connection', (conn) => {
-    setupConnection(conn, false);
-  });
+    peerInstance.on('connection', (conn) => {
+      setupConnection(conn, false);
+    });
 
-  peerInstance.on('error', (err: any) => {
-    console.warn('WebRTC Student error:', err);
-  });
+    peerInstance.on('error', (err: any) => {
+      console.warn('WebRTC Student error:', err);
+    });
+  } catch (err) {
+    console.warn('Failed to construct WebRTC Student:', err);
+  }
 }
 
 function connectToHost(hostPeerId: string) {

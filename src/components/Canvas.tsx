@@ -35,7 +35,7 @@ interface CanvasProps {
   showCursorReticle?: boolean;
 }
 
-export const Canvas = forwardRef<CanvasRefHandle, CanvasProps>(({
+const CanvasComponent = forwardRef<CanvasRefHandle, CanvasProps>(({
   objects,
   activeTool,
   currentColor,
@@ -127,14 +127,15 @@ export const Canvas = forwardRef<CanvasRefHandle, CanvasProps>(({
   }, []);
 
   // Interaction state
+  const isPointerDownRef = useRef(false);
+  const lastSegmentScreenPtRef = useRef<Point | null>(null);
   const [isPointerDown, setIsPointerDown] = useState(false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const [isDraggingObject, setIsDraggingObject] = useState(false);
   const [dragStartPoint, setDragStartPoint] = useState<Point | null>(null);
   const [objectStartPos, setObjectStartPos] = useState<{ x: number; y: number } | null>(null);
 
-  // Live stroke buffer (drawn only locally until pointer up)
-  const [currentStroke, setCurrentStroke] = useState<Point[]>([]);
+  // Live stroke buffer & shape preview
   const [shapePreview, setShapePreview] = useState<{ start: Point; current: Point } | null>(null);
 
   // Editing text / sticky in-place
@@ -508,147 +509,155 @@ export const Canvas = forwardRef<CanvasRefHandle, CanvasProps>(({
     // Subtle grid
     drawGrid(ctx, width, height);
 
-    // Sort objects by zIndex / createdAt
-    const sortedObjects = Object.values(objects).sort(
-      (a, b) => (a.zIndex || a.createdAt) - (b.zIndex || b.createdAt)
+    // Defensively filter valid objects to prevent white screen crashes
+    const validObjects = Object.values(objects || {}).filter(
+      (obj): obj is BoardObject => Boolean(obj && typeof obj === 'object' && obj.id)
+    );
+    const sortedObjects = validObjects.sort(
+      (a, b) => ((a.zIndex ?? a.createdAt) || 0) - ((b.zIndex ?? b.createdAt) || 0)
     );
 
-    // Render committed objects
+    // Render committed objects safely
     sortedObjects.forEach((obj) => {
-      const isSelected = obj.id === selectedObjectId;
+      try {
+        const isSelected = obj.id === selectedObjectId;
 
-      if (obj.type === 'sticky') {
-        drawSticky(ctx, obj, isSelected);
-      } else if (obj.type === 'text') {
-        drawText(ctx, obj, isSelected);
-      } else if (obj.type === 'image') {
-        drawImageObject(ctx, obj, isSelected);
-      } else if (obj.type === 'pen' || obj.type === 'highlighter') {
-        if (!obj.points || obj.points.length < 2) return;
-        ctx.save();
-        ctx.beginPath();
-        const first = worldToScreen(obj.points[0].x, obj.points[0].y);
-        ctx.moveTo(first.x, first.y);
-
-        for (let i = 1; i < obj.points.length; i++) {
-          const pt = worldToScreen(obj.points[i].x, obj.points[i].y);
-          ctx.lineTo(pt.x, pt.y);
-        }
-
-        ctx.strokeStyle = obj.color || '#000';
-        ctx.lineWidth = Math.max(1, (obj.strokeWidth || 3) * zoom);
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-
-        if (obj.type === 'highlighter') {
-          ctx.globalAlpha = 0.35;
-          ctx.lineWidth = Math.max(4, (obj.strokeWidth || 8) * 2.5 * zoom);
-        }
-
-        ctx.stroke();
-
-        if (isSelected) {
-          ctx.strokeStyle = '#4f46e5';
-          ctx.lineWidth = 1;
-          ctx.setLineDash([4, 4]);
-          ctx.stroke();
-        }
-        ctx.restore();
-      } else if (obj.type === 'rect') {
-        const screen = worldToScreen(obj.x, obj.y);
-        const w = (obj.width || 100) * zoom;
-        const h = (obj.height || 100) * zoom;
-
-        ctx.save();
-        ctx.strokeStyle = obj.color || '#000';
-        ctx.lineWidth = Math.max(1, (obj.strokeWidth || 2) * zoom);
-        if (obj.fill) {
-          ctx.fillStyle = obj.fillColor || `${obj.color}22`;
-          ctx.fillRect(screen.x, screen.y, w, h);
-        }
-        ctx.strokeRect(screen.x, screen.y, w, h);
-
-        if (isSelected) {
-          ctx.strokeStyle = '#4f46e5';
-          ctx.lineWidth = 2;
-          ctx.strokeRect(screen.x - 2, screen.y - 2, w + 4, h + 4);
-        }
-        ctx.restore();
-      } else if (obj.type === 'ellipse') {
-        const screen = worldToScreen(obj.x, obj.y);
-        const w = (obj.width || 100) * zoom;
-        const h = (obj.height || 100) * zoom;
-        const cx = screen.x + w / 2;
-        const cy = screen.y + h / 2;
-        const rx = Math.abs(w / 2);
-        const ry = Math.abs(h / 2);
-
-        ctx.save();
-        ctx.beginPath();
-        ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
-        ctx.strokeStyle = obj.color || '#000';
-        ctx.lineWidth = Math.max(1, (obj.strokeWidth || 2) * zoom);
-
-        if (obj.fill) {
-          ctx.fillStyle = obj.fillColor || `${obj.color}22`;
-          ctx.fill();
-        }
-        ctx.stroke();
-
-        if (isSelected) {
-          ctx.strokeStyle = '#4f46e5';
-          ctx.lineWidth = 2;
-          ctx.strokeRect(screen.x - 2, screen.y - 2, w + 4, h + 4);
-        }
-        ctx.restore();
-      } else if (obj.type === 'line' || obj.type === 'arrow') {
-        const screenStart = worldToScreen(obj.x, obj.y);
-        const screenEnd = worldToScreen(obj.x + (obj.width || 100), obj.y + (obj.height || 100));
-
-        ctx.save();
-        ctx.beginPath();
-        ctx.moveTo(screenStart.x, screenStart.y);
-        ctx.lineTo(screenEnd.x, screenEnd.y);
-        ctx.strokeStyle = obj.color || '#000';
-        ctx.lineWidth = Math.max(1, (obj.strokeWidth || 2) * zoom);
-        ctx.stroke();
-
-        if (obj.type === 'arrow') {
-          const angle = Math.atan2(screenEnd.y - screenStart.y, screenEnd.x - screenStart.x);
-          const arrowLen = 12 * zoom;
+        if (obj.type === 'sticky') {
+          drawSticky(ctx, obj, isSelected);
+        } else if (obj.type === 'text') {
+          drawText(ctx, obj, isSelected);
+        } else if (obj.type === 'image') {
+          drawImageObject(ctx, obj, isSelected);
+        } else if (obj.type === 'pen' || obj.type === 'highlighter') {
+          if (!obj.points || obj.points.length < 2) return;
+          ctx.save();
           ctx.beginPath();
-          ctx.moveTo(screenEnd.x, screenEnd.y);
-          ctx.lineTo(
-            screenEnd.x - arrowLen * Math.cos(angle - Math.PI / 6),
-            screenEnd.y - arrowLen * Math.sin(angle - Math.PI / 6)
-          );
-          ctx.moveTo(screenEnd.x, screenEnd.y);
-          ctx.lineTo(
-            screenEnd.x - arrowLen * Math.cos(angle + Math.PI / 6),
-            screenEnd.y - arrowLen * Math.sin(angle + Math.PI / 6)
-          );
-          ctx.stroke();
-        }
+          const first = worldToScreen(obj.points[0].x, obj.points[0].y);
+          ctx.moveTo(first.x, first.y);
 
-        if (isSelected) {
-          ctx.strokeStyle = '#4f46e5';
-          ctx.lineWidth = 1;
-          ctx.setLineDash([4, 4]);
+          for (let i = 1; i < obj.points.length; i++) {
+            const pt = worldToScreen(obj.points[i].x, obj.points[i].y);
+            ctx.lineTo(pt.x, pt.y);
+          }
+
+          ctx.strokeStyle = obj.color || '#000';
+          ctx.lineWidth = Math.max(1, (obj.strokeWidth || 3) * zoom);
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+
+          if (obj.type === 'highlighter') {
+            ctx.globalAlpha = 0.35;
+            ctx.lineWidth = Math.max(4, (obj.strokeWidth || 8) * 2.5 * zoom);
+          }
+
           ctx.stroke();
+
+          if (isSelected) {
+            ctx.strokeStyle = '#4f46e5';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([4, 4]);
+            ctx.stroke();
+          }
+          ctx.restore();
+        } else if (obj.type === 'rect') {
+          const screen = worldToScreen(obj.x, obj.y);
+          const w = (obj.width || 100) * zoom;
+          const h = (obj.height || 100) * zoom;
+
+          ctx.save();
+          ctx.strokeStyle = obj.color || '#000';
+          ctx.lineWidth = Math.max(1, (obj.strokeWidth || 2) * zoom);
+          if (obj.fill) {
+            ctx.fillStyle = obj.fillColor || `${obj.color}22`;
+            ctx.fillRect(screen.x, screen.y, w, h);
+          }
+          ctx.strokeRect(screen.x, screen.y, w, h);
+
+          if (isSelected) {
+            ctx.strokeStyle = '#4f46e5';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(screen.x - 2, screen.y - 2, w + 4, h + 4);
+          }
+          ctx.restore();
+        } else if (obj.type === 'ellipse') {
+          const screen = worldToScreen(obj.x, obj.y);
+          const w = (obj.width || 100) * zoom;
+          const h = (obj.height || 100) * zoom;
+          const cx = screen.x + w / 2;
+          const cy = screen.y + h / 2;
+          const rx = Math.abs(w / 2);
+          const ry = Math.abs(h / 2);
+
+          ctx.save();
+          ctx.beginPath();
+          ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+          ctx.strokeStyle = obj.color || '#000';
+          ctx.lineWidth = Math.max(1, (obj.strokeWidth || 2) * zoom);
+
+          if (obj.fill) {
+            ctx.fillStyle = obj.fillColor || `${obj.color}22`;
+            ctx.fill();
+          }
+          ctx.stroke();
+
+          if (isSelected) {
+            ctx.strokeStyle = '#4f46e5';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(screen.x - 2, screen.y - 2, w + 4, h + 4);
+          }
+          ctx.restore();
+        } else if (obj.type === 'line' || obj.type === 'arrow') {
+          const screenStart = worldToScreen(obj.x, obj.y);
+          const screenEnd = worldToScreen(obj.x + (obj.width || 100), obj.y + (obj.height || 100));
+
+          ctx.save();
+          ctx.beginPath();
+          ctx.moveTo(screenStart.x, screenStart.y);
+          ctx.lineTo(screenEnd.x, screenEnd.y);
+          ctx.strokeStyle = obj.color || '#000';
+          ctx.lineWidth = Math.max(1, (obj.strokeWidth || 2) * zoom);
+          ctx.stroke();
+
+          if (obj.type === 'arrow') {
+            const angle = Math.atan2(screenEnd.y - screenStart.y, screenEnd.x - screenStart.x);
+            const arrowLen = 12 * zoom;
+            ctx.beginPath();
+            ctx.moveTo(screenEnd.x, screenEnd.y);
+            ctx.lineTo(
+              screenEnd.x - arrowLen * Math.cos(angle - Math.PI / 6),
+              screenEnd.y - arrowLen * Math.sin(angle - Math.PI / 6)
+            );
+            ctx.moveTo(screenEnd.x, screenEnd.y);
+            ctx.lineTo(
+              screenEnd.x - arrowLen * Math.cos(angle + Math.PI / 6),
+              screenEnd.y - arrowLen * Math.sin(angle + Math.PI / 6)
+            );
+            ctx.stroke();
+          }
+
+          if (isSelected) {
+            ctx.strokeStyle = '#4f46e5';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([4, 4]);
+            ctx.stroke();
+          }
+          ctx.restore();
         }
-        ctx.restore();
+      } catch (e) {
+        console.warn('Canvas object render warning:', e);
       }
     });
 
-    // Render LIVE local stroke (Lag-free latency optimization)
-    if (currentStroke.length >= 2) {
+    // Render LIVE local stroke from currentStrokeRef if active
+    const activeLiveStroke = currentStrokeRef.current;
+    if (activeLiveStroke.length >= 2) {
       ctx.save();
       ctx.beginPath();
-      const first = worldToScreen(currentStroke[0].x, currentStroke[0].y);
+      const first = worldToScreen(activeLiveStroke[0].x, activeLiveStroke[0].y);
       ctx.moveTo(first.x, first.y);
 
-      for (let i = 1; i < currentStroke.length; i++) {
-        const pt = worldToScreen(currentStroke[i].x, currentStroke[i].y);
+      for (let i = 1; i < activeLiveStroke.length; i++) {
+        const pt = worldToScreen(activeLiveStroke[i].x, activeLiveStroke[i].y);
         ctx.lineTo(pt.x, pt.y);
       }
 
@@ -724,7 +733,6 @@ export const Canvas = forwardRef<CanvasRefHandle, CanvasProps>(({
     selectedObjectId,
     pan,
     zoom,
-    currentStroke,
     shapePreview,
     currentColor,
     strokeWidth,
@@ -741,9 +749,9 @@ export const Canvas = forwardRef<CanvasRefHandle, CanvasProps>(({
 
   // Hit-testing helper
   const findObjectAt = (worldPt: Point): BoardObject | null => {
-    const list = Object.values(objects).sort(
-      (a, b) => (b.zIndex || b.createdAt) - (a.zIndex || a.createdAt)
-    );
+    const list = Object.values(objects || {})
+      .filter((obj): obj is BoardObject => Boolean(obj && typeof obj === 'object' && obj.id))
+      .sort((a, b) => ((b.zIndex ?? b.createdAt) || 0) - ((a.zIndex ?? a.createdAt) || 0));
 
     for (const obj of list) {
       if (obj.type === 'sticky') {
@@ -877,11 +885,13 @@ export const Canvas = forwardRef<CanvasRefHandle, CanvasProps>(({
 
     isPinchActive.current = false;
     const worldPt = screenToWorld(pos.x, pos.y);
-    setIsPointerDown(true);
+    isPointerDownRef.current = true;
+    lastSegmentScreenPtRef.current = { x: pos.x, y: pos.y };
     setDragStartPoint({ x: pos.x, y: pos.y });
 
     // Handle Pan tool or Spacebar
     if (activeTool === 'pan' || isSpacePressed || e.button === 1) {
+      setIsPointerDown(true);
       return;
     }
 
@@ -1016,7 +1026,7 @@ export const Canvas = forwardRef<CanvasRefHandle, CanvasProps>(({
       onCursorMove(worldPt);
     }
 
-    if (!isPointerDown) return;
+    if (!isPointerDownRef.current) return;
 
     // Pan canvas
     if (activeTool === 'pan' || isSpacePressed || e.buttons === 4) {
@@ -1033,11 +1043,11 @@ export const Canvas = forwardRef<CanvasRefHandle, CanvasProps>(({
     if (activeTool === 'pen' || activeTool === 'highlighter') {
       const pts = currentStrokeRef.current;
       if (pts.length > 0) {
-        const lastPt = pts[pts.length - 1];
         pts.push(worldPt);
 
         const canvas = canvasRef.current;
-        if (canvas && lastPt) {
+        const lastScreen = lastSegmentScreenPtRef.current;
+        if (canvas && lastScreen) {
           const ctx = canvas.getContext('2d');
           if (ctx) {
             const dpr = window.devicePixelRatio || 1;
@@ -1051,14 +1061,13 @@ export const Canvas = forwardRef<CanvasRefHandle, CanvasProps>(({
               ctx.globalAlpha = 0.35;
             }
             ctx.beginPath();
-            const p1 = worldToScreen(lastPt.x, lastPt.y);
-            const p2 = worldToScreen(worldPt.x, worldPt.y);
-            ctx.moveTo(p1.x, p1.y);
-            ctx.lineTo(p2.x, p2.y);
+            ctx.moveTo(lastScreen.x, lastScreen.y);
+            ctx.lineTo(pos.x, pos.y);
             ctx.stroke();
             ctx.restore();
           }
         }
+        lastSegmentScreenPtRef.current = { x: pos.x, y: pos.y };
       }
       return;
     }
@@ -1112,9 +1121,10 @@ export const Canvas = forwardRef<CanvasRefHandle, CanvasProps>(({
     if (activePointers.current.size === 0) {
       if (isPinchActive.current) {
         isPinchActive.current = false;
+        isPointerDownRef.current = false;
+        lastSegmentScreenPtRef.current = null;
         setIsPointerDown(false);
         setIsDraggingObject(false);
-        setCurrentStroke([]);
         setShapePreview(null);
         return;
       }
@@ -1123,6 +1133,8 @@ export const Canvas = forwardRef<CanvasRefHandle, CanvasProps>(({
       return;
     }
 
+    isPointerDownRef.current = false;
+    lastSegmentScreenPtRef.current = null;
     setIsPointerDown(false);
     setIsDraggingObject(false);
 
@@ -1145,11 +1157,9 @@ export const Canvas = forwardRef<CanvasRefHandle, CanvasProps>(({
       };
       onObjectCreated(newStrokeObj);
       currentStrokeRef.current = [];
-      setCurrentStroke([]);
       return;
     }
     currentStrokeRef.current = [];
-    setCurrentStroke([]);
 
     // Commit Shape
     if (shapePreview) {
@@ -1627,4 +1637,6 @@ export const Canvas = forwardRef<CanvasRefHandle, CanvasProps>(({
   );
 });
 
-Canvas.displayName = 'Canvas';
+CanvasComponent.displayName = 'Canvas';
+
+export const Canvas = React.memo(CanvasComponent);

@@ -21,13 +21,13 @@ import {
   Upload,
   Trash2,
   ChevronDown,
-  Sparkles,
   FileCode,
   ZoomIn,
   ZoomOut,
   Github,
   Layers,
   Eye,
+  Copy,
 } from 'lucide-react';
 import { ToolType } from '../types/board';
 import { GithubModal } from './GithubModal';
@@ -67,11 +67,6 @@ export interface TopBarProps {
   onOpenBoardManager?: () => void;
   showCursorReticle?: boolean;
   onToggleCursorReticle?: () => void;
-  // Optional background parameters
-  onOpenFirebase?: () => void;
-  isFirebaseActive?: boolean;
-  webRtcStatus?: 'disconnected' | 'connecting' | 'connected' | 'host';
-  peerCount?: number;
 }
 
 const PRIMARY_SWATCHES = [
@@ -135,6 +130,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   currentUser,
   onlineCount,
   roomId,
+  isReadOnly,
   zoom = 1,
   onZoomIn,
   onZoomOut,
@@ -153,14 +149,14 @@ export const TopBar: React.FC<TopBarProps> = ({
   const isShapeTool = ['rect', 'ellipse', 'line', 'arrow'].includes(activeTool);
 
   return (
-    <header className="bg-white border-b border-slate-200 z-30 select-none shadow-xs shrink-0">
-      {/* Tier 1: App Header, Room Info, Boards Switcher, File Menu, & Collaboration Actions */}
-      <div className="h-12 px-3 md:px-4 flex items-center justify-between gap-2.5 border-b border-slate-100">
-        {/* Left: Branding, Room Code, Boards, File Menu */}
-        <div className="flex items-center gap-2.5 shrink-0">
+    <header className="bg-white border-b border-slate-200 z-30 select-none shadow-xs shrink-0 w-full overflow-hidden">
+      {/* Tier 1: Branding, Room Code, Boards Manager, File Menu & User Actions */}
+      <div className="h-11 px-2.5 sm:px-4 flex items-center justify-between gap-2 border-b border-slate-100 overflow-x-auto scrollbar-none">
+        {/* Left: Brand, Room, Student Boards, File Menu */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <div
             className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-xs"
-            title="Conceptboard Collab"
+            title="Conceptboard Collab - Interactive Whiteboard"
           >
             CB
           </div>
@@ -168,19 +164,20 @@ export const TopBar: React.FC<TopBarProps> = ({
           {/* Room Badge */}
           <button
             onClick={onOpenShare}
-            className="px-2.5 py-1 bg-slate-50 hover:bg-slate-100 rounded-lg border border-slate-200 text-slate-700 text-xs font-mono font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+            className="px-2 py-1 bg-slate-50 hover:bg-slate-100 rounded-lg border border-slate-200 text-slate-700 text-xs font-mono font-medium flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
             title="Click to copy link or share with students"
           >
-            <span className="text-[10px] text-slate-400 font-sans font-normal">Room:</span>
+            <span className="text-[10px] text-slate-400 font-sans font-normal hidden sm:inline">Room:</span>
             <span className="font-bold text-indigo-700">{roomId}</span>
+            <Copy className="w-3 h-3 text-slate-400" />
           </button>
 
-          {/* Multi-Student Boards Switcher Button */}
+          {/* Multi-Student Boards Switcher */}
           {onOpenBoardManager && (
             <button
               onClick={onOpenBoardManager}
-              className="px-2.5 py-1 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
-              title="Handle 2–3 students on different boards (switch or open side-by-side)"
+              className="px-2.5 py-1 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs shrink-0"
+              title="Manage multiple student boards (switch boards or open in new tabs)"
             >
               <Layers className="w-3.5 h-3.5 text-indigo-600" />
               <span>Student Boards</span>
@@ -188,7 +185,7 @@ export const TopBar: React.FC<TopBarProps> = ({
           )}
 
           {/* File & Export Dropdown */}
-          <div className="relative">
+          <div className="relative shrink-0">
             <button
               onClick={() => setShowFileMenu(!showFileMenu)}
               className="px-2.5 py-1 text-xs font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors flex items-center gap-1 cursor-pointer"
@@ -278,13 +275,20 @@ export const TopBar: React.FC<TopBarProps> = ({
           </div>
         </div>
 
-        {/* Right: Reticle toggle, Online Count, User Profile, Share */}
-        <div className="flex items-center gap-2 shrink-0">
+        {/* Right: Reticle Toggle, Online Count, User Profile, Share */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Read-Only Indicator for Student */}
+          {isReadOnly && (
+            <span className="px-2 py-0.5 rounded-full bg-amber-100 border border-amber-300 text-amber-800 text-[10px] font-semibold">
+              View Only
+            </span>
+          )}
+
           {/* On-Screen Reticle Preview Toggle */}
           {onToggleCursorReticle && (
             <button
               onClick={onToggleCursorReticle}
-              className={`px-2 py-1 rounded-lg border transition-colors cursor-pointer flex items-center gap-1 text-xs ${
+              className={`px-2 py-1 rounded-lg border transition-colors cursor-pointer flex items-center gap-1 text-xs shrink-0 ${
                 showCursorReticle
                   ? 'bg-indigo-50 border-indigo-200 text-indigo-700 font-semibold'
                   : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
@@ -292,14 +296,14 @@ export const TopBar: React.FC<TopBarProps> = ({
               title={showCursorReticle ? 'Pointer reticle active' : 'Pointer reticle hidden'}
             >
               <Eye className="w-3.5 h-3.5" />
-              <span className="text-[11px]">Reticle</span>
+              <span className="text-[11px] hidden sm:inline">Reticle</span>
             </button>
           )}
 
           {/* Online Count */}
           <div
-            className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 rounded-lg text-slate-700 text-xs font-medium"
-            title={`${onlineCount} connected participant(s)`}
+            className="flex items-center gap-1.5 px-2 py-1 bg-slate-100 rounded-lg text-slate-700 text-xs font-medium shrink-0"
+            title={`${onlineCount} active participant(s)`}
           >
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <Users className="w-3.5 h-3.5 text-slate-500" />
@@ -309,15 +313,15 @@ export const TopBar: React.FC<TopBarProps> = ({
           {/* User Profile */}
           <button
             onClick={onOpenUserProfile}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-medium transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-medium transition-colors cursor-pointer shrink-0"
             title="Change name and role"
           >
             <div
               className="w-3 h-3 rounded-full shrink-0"
               style={{ backgroundColor: currentUser.color }}
             />
-            <span className="max-w-[100px] truncate">{currentUser.name}</span>
-            <span className="text-[10px] text-slate-400">
+            <span className="max-w-[85px] sm:max-w-[110px] truncate">{currentUser.name}</span>
+            <span className="text-[10px] text-slate-400 hidden sm:inline">
               ({currentUser.role === 'teacher' ? 'Host' : 'Student'})
             </span>
           </button>
@@ -325,7 +329,7 @@ export const TopBar: React.FC<TopBarProps> = ({
           {/* Share Button */}
           <button
             onClick={onOpenShare}
-            className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+            className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
             title="Invite students with room link or code"
           >
             <Share2 className="w-3.5 h-3.5" />
@@ -335,10 +339,10 @@ export const TopBar: React.FC<TopBarProps> = ({
       </div>
 
       {/* Tier 2: ALL Drawing Tools, Quick Colors, Sizes, Shapes, Undo/Redo & Zoom Controls */}
-      <div className="min-h-11 px-3 md:px-4 py-1.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 bg-slate-50/70">
-        {/* Group 1: All 13 Core Tools */}
+      {/* Designed with overflow-x-auto and low-profile scrollbar so NO OPTION IS EVER HIDDEN on any screen */}
+      <div className="min-h-11 px-2.5 sm:px-4 py-1.5 flex items-center gap-2 bg-slate-50/90 overflow-x-auto scrollbar-thin">
+        {/* Section 1: Navigation & Drawing Core Tools (Select, Pan, Pen, Highlighter, Eraser) */}
         <div className="flex items-center gap-0.5 bg-white p-1 rounded-xl border border-slate-200 shadow-2xs shrink-0">
-          {/* Select & Pan */}
           <button
             onClick={() => onSelectTool('select')}
             className={`px-2 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 cursor-pointer ${
@@ -349,7 +353,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             title="Select & Move Objects (V)"
           >
             <MousePointer2 className="w-3.5 h-3.5" />
-            <span>Select</span>
+            <span className="hidden md:inline">Select</span>
           </button>
 
           <button
@@ -362,12 +366,11 @@ export const TopBar: React.FC<TopBarProps> = ({
             title="Pan / Hand tool (H / Spacebar)"
           >
             <Hand className="w-3.5 h-3.5" />
-            <span>Pan</span>
+            <span className="hidden md:inline">Pan</span>
           </button>
 
           <div className="w-px h-4 bg-slate-200 mx-0.5" />
 
-          {/* Drawing: Pen, Highlighter, Eraser */}
           <button
             onClick={() => onSelectTool('pen')}
             className={`px-2 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 cursor-pointer ${
@@ -390,8 +393,8 @@ export const TopBar: React.FC<TopBarProps> = ({
             }`}
             title="Highlighter (semi-transparent)"
           >
-            <Highlighter className="w-3.5 h-3.5" />
-            <span>Highlight</span>
+            <Highlighter className="w-3.5 h-3.5 text-amber-500" />
+            <span className="hidden md:inline">Highlight</span>
           </button>
 
           <button
@@ -403,13 +406,13 @@ export const TopBar: React.FC<TopBarProps> = ({
             }`}
             title="Eraser (E)"
           >
-            <Eraser className="w-3.5 h-3.5" />
-            <span>Eraser</span>
+            <Eraser className="w-3.5 h-3.5 text-rose-500" />
+            <span className="hidden md:inline">Eraser</span>
           </button>
+        </div>
 
-          <div className="w-px h-4 bg-slate-200 mx-0.5" />
-
-          {/* Shapes: Rect, Circle, Line, Arrow */}
+        {/* Section 2: Shapes (Rect, Circle, Line, Arrow) */}
+        <div className="flex items-center gap-0.5 bg-white p-1 rounded-xl border border-slate-200 shadow-2xs shrink-0">
           <button
             onClick={() => onSelectTool('rect')}
             className={`p-1.5 rounded-lg transition-all cursor-pointer ${
@@ -457,10 +460,10 @@ export const TopBar: React.FC<TopBarProps> = ({
           >
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
+        </div>
 
-          <div className="w-px h-4 bg-slate-200 mx-0.5" />
-
-          {/* Text & Sticky */}
+        {/* Section 3: Content (Text, Sticky, Image, PDF) */}
+        <div className="flex items-center gap-0.5 bg-white p-1 rounded-xl border border-slate-200 shadow-2xs shrink-0">
           <button
             onClick={() => onSelectTool('text')}
             className={`px-2 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 cursor-pointer ${
@@ -489,7 +492,6 @@ export const TopBar: React.FC<TopBarProps> = ({
 
           <div className="w-px h-4 bg-slate-200 mx-0.5" />
 
-          {/* Media: Image & PDF Upload */}
           <button
             onClick={() => imageInputRef.current?.click()}
             className="px-2 py-1 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors flex items-center gap-1 cursor-pointer"
@@ -509,178 +511,174 @@ export const TopBar: React.FC<TopBarProps> = ({
           </button>
         </div>
 
-        {/* Group 2: Quick Colors, Sizes, Modifiers, Undo/Redo & Zoom */}
-        <div className="flex items-center gap-2 shrink-0">
-          {/* Quick Color Swatches (8 core colors directly clickable) */}
-          <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-2xs">
-            {PRIMARY_SWATCHES.map((c) => (
+        {/* Section 4: Color Swatches & Color Studio */}
+        <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-2xs shrink-0">
+          {PRIMARY_SWATCHES.map((c) => (
+            <button
+              key={c}
+              onClick={() => onSelectColor(c)}
+              style={{ backgroundColor: c }}
+              className={`w-5 h-5 rounded-full border transition-transform cursor-pointer ${
+                currentColor === c
+                  ? 'ring-2 ring-indigo-500 scale-110 border-white'
+                  : 'border-slate-300 hover:scale-105'
+              }`}
+              title={`Color: ${c}`}
+            />
+          ))}
+
+          {/* Color Palette Popover Trigger */}
+          <div className="relative pl-1 border-l border-slate-200 ml-0.5">
+            <button
+              onClick={() => setShowColorPicker(!showColorPicker)}
+              className="w-5 h-5 rounded-full border border-slate-300 flex items-center justify-center cursor-pointer shadow-2xs hover:scale-105"
+              style={{ backgroundColor: currentColor }}
+              title="More colors"
+            >
+              <ChevronDown className="w-2.5 h-2.5 text-white mix-blend-difference" />
+            </button>
+
+            {showColorPicker && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setShowColorPicker(false)}
+                />
+                <div className="absolute right-0 mt-2 p-2 bg-white border border-slate-200 rounded-xl shadow-2xl z-50 grid grid-cols-4 gap-1.5 w-36">
+                  {ALL_PALETTE_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => {
+                        onSelectColor(c);
+                        setShowColorPicker(false);
+                      }}
+                      style={{ backgroundColor: c }}
+                      className={`w-6 h-6 rounded-md border transition-transform cursor-pointer ${
+                        currentColor === c
+                          ? 'scale-110 ring-2 ring-indigo-500 border-white'
+                          : 'border-slate-300 hover:scale-105'
+                      }`}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Section 5: Stroke Width (S, M, L, XL + Slider + Exact Px) */}
+        <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-xl border border-slate-200 shadow-2xs shrink-0">
+          <span className="text-[10px] font-bold text-slate-400">Size:</span>
+          {[
+            { label: 'S', val: 2 },
+            { label: 'M', val: 4 },
+            { label: 'L', val: 8 },
+            { label: 'XL', val: 14 },
+          ].map((p) => (
+            <button
+              key={p.label}
+              onClick={() => onChangeStrokeWidth(p.val)}
+              className={`px-1.5 py-0.5 text-[10px] font-bold rounded cursor-pointer transition-colors ${
+                strokeWidth === p.val
+                  ? 'bg-indigo-600 text-white'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+              title={`${p.label} (${p.val}px)`}
+            >
+              {p.label}
+            </button>
+          ))}
+          <input
+            type="range"
+            min={1}
+            max={28}
+            value={strokeWidth}
+            onChange={(e) => onChangeStrokeWidth(Number(e.target.value))}
+            className="w-12 h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 ml-0.5"
+            title={`Stroke width: ${strokeWidth}px`}
+          />
+          <span className="font-mono text-[10px] w-3 text-slate-600 text-right">{strokeWidth}</span>
+        </div>
+
+        {/* Section 6: Contextual Controls (Shape Fill & Sticky Note Palette) */}
+        {isShapeTool && (
+          <button
+            onClick={onToggleFillShape}
+            className={`px-2 py-1 rounded-xl text-xs font-semibold border transition-colors cursor-pointer shadow-2xs shrink-0 ${
+              fillShape
+                ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
+                : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+            }`}
+            title="Toggle shape fill style"
+          >
+            {fillShape ? 'Filled' : 'Outline'}
+          </button>
+        )}
+
+        {activeTool === 'sticky' && (
+          <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-2xs shrink-0">
+            {STICKY_PALETTE.map((s) => (
               <button
-                key={c}
-                onClick={() => onSelectColor(c)}
-                style={{ backgroundColor: c }}
-                className={`w-5 h-5 rounded-full border transition-transform cursor-pointer ${
-                  currentColor === c
-                    ? 'ring-2 ring-indigo-500 scale-110 border-white'
-                    : 'border-slate-300 hover:scale-105'
+                key={s.name}
+                onClick={() => onSelectStickyColor(s.color)}
+                style={{ backgroundColor: s.color }}
+                className={`w-5 h-5 rounded-md transition-transform cursor-pointer ${
+                  stickyColor === s.color
+                    ? 'ring-2 ring-slate-800 scale-110'
+                    : 'opacity-70 hover:opacity-100'
                 }`}
-                title={`Select color: ${c}`}
+                title={`${s.name} Note`}
               />
             ))}
-
-            {/* Custom Color Dropdown Trigger */}
-            <div className="relative pl-1 border-l border-slate-200 ml-0.5">
-              <button
-                onClick={() => setShowColorPicker(!showColorPicker)}
-                className="w-5 h-5 rounded-full border border-slate-300 flex items-center justify-center cursor-pointer shadow-2xs hover:scale-105"
-                style={{ backgroundColor: currentColor }}
-                title="All Palette Colors"
-              >
-                <ChevronDown className="w-2.5 h-2.5 text-white mix-blend-difference" />
-              </button>
-
-              {showColorPicker && (
-                <>
-                  <div
-                    className="fixed inset-0 z-40"
-                    onClick={() => setShowColorPicker(false)}
-                  />
-                  <div className="absolute right-0 mt-2 p-2.5 bg-white border border-slate-200 rounded-xl shadow-2xl z-50 grid grid-cols-4 gap-1.5 w-40">
-                    {ALL_PALETTE_COLORS.map((c) => (
-                      <button
-                        key={c}
-                        onClick={() => {
-                          onSelectColor(c);
-                          setShowColorPicker(false);
-                        }}
-                        style={{ backgroundColor: c }}
-                        className={`w-6 h-6 rounded-md border transition-transform cursor-pointer ${
-                          currentColor === c
-                            ? 'scale-110 ring-2 ring-indigo-500 border-white'
-                            : 'border-slate-300 hover:scale-105'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
           </div>
+        )}
 
-          {/* Stroke Width Selector (Presets S, M, L, XL + range) */}
-          <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-xl border border-slate-200 shadow-2xs">
-            <span className="text-[10px] font-bold text-slate-400">Size:</span>
-            {[
-              { label: 'S', val: 2 },
-              { label: 'M', val: 4 },
-              { label: 'L', val: 8 },
-              { label: 'XL', val: 14 },
-            ].map((p) => (
-              <button
-                key={p.label}
-                onClick={() => onChangeStrokeWidth(p.val)}
-                className={`px-1.5 py-0.5 text-[10px] font-bold rounded cursor-pointer transition-colors ${
-                  strokeWidth === p.val
-                    ? 'bg-indigo-600 text-white'
-                    : 'text-slate-600 hover:bg-slate-100'
-                }`}
-                title={`${p.label} (${p.val}px)`}
-              >
-                {p.label}
-              </button>
-            ))}
-            <input
-              type="range"
-              min={1}
-              max={28}
-              value={strokeWidth}
-              onChange={(e) => onChangeStrokeWidth(Number(e.target.value))}
-              className="w-14 h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 ml-1"
-              title={`Stroke width: ${strokeWidth}px`}
-            />
-            <span className="font-mono text-[10px] w-3 text-slate-600 text-right">{strokeWidth}</span>
-          </div>
-
-          {/* Shape Fill Toggle (shown when shape tool is active) */}
-          {isShapeTool && (
-            <button
-              onClick={onToggleFillShape}
-              className={`px-2.5 py-1 rounded-xl text-xs font-semibold border transition-colors cursor-pointer shadow-2xs ${
-                fillShape
-                  ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
-                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-              }`}
-              title="Toggle shape fill style"
-            >
-              {fillShape ? 'Filled Shape' : 'Outline Only'}
-            </button>
-          )}
-
-          {/* Sticky Colors (shown when sticky note tool is active) */}
-          {activeTool === 'sticky' && (
-            <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-2xs">
-              {STICKY_PALETTE.map((s) => (
-                <button
-                  key={s.name}
-                  onClick={() => onSelectStickyColor(s.color)}
-                  style={{ backgroundColor: s.color }}
-                  className={`w-5 h-5 rounded-md transition-transform cursor-pointer ${
-                    stickyColor === s.color
-                      ? 'ring-2 ring-slate-800 scale-110'
-                      : 'opacity-70 hover:opacity-100'
-                  }`}
-                  title={`${s.name} Note`}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* Undo & Redo */}
-          <div className="flex items-center gap-0.5 bg-white p-1 rounded-xl border border-slate-200 shadow-2xs">
-            <button
-              disabled={!canUndo}
-              onClick={onUndo}
-              className="p-1 rounded text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
-              title="Undo (Ctrl+Z)"
-            >
-              <Undo2 className="w-3.5 h-3.5" />
-            </button>
-            <button
-              disabled={!canRedo}
-              onClick={onRedo}
-              className="p-1 rounded text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
-              title="Redo (Ctrl+Y)"
-            >
-              <Redo2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          {/* Zoom Controls */}
-          {onZoomIn && onZoomOut && (
-            <div className="flex items-center gap-0.5 bg-white p-1 rounded-xl border border-slate-200 shadow-2xs">
-              <button
-                onClick={onZoomOut}
-                className="p-1 rounded text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-                title="Zoom Out (-)"
-              >
-                <ZoomOut className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={onResetZoom}
-                className="px-1.5 py-0.5 rounded text-[11px] font-mono font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-                title="Reset Zoom to 100%"
-              >
-                {Math.round((zoom || 1) * 100)}%
-              </button>
-              <button
-                onClick={onZoomIn}
-                className="p-1 rounded text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-                title="Zoom In (+)"
-              >
-                <ZoomIn className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          )}
+        {/* Section 7: History Undo & Redo */}
+        <div className="flex items-center gap-0.5 bg-white p-1 rounded-xl border border-slate-200 shadow-2xs shrink-0">
+          <button
+            disabled={!canUndo}
+            onClick={onUndo}
+            className="p-1 rounded text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
+            title="Undo (Ctrl+Z)"
+          >
+            <Undo2 className="w-3.5 h-3.5" />
+          </button>
+          <button
+            disabled={!canRedo}
+            onClick={onRedo}
+            className="p-1 rounded text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
+            title="Redo (Ctrl+Y)"
+          >
+            <Redo2 className="w-3.5 h-3.5" />
+          </button>
         </div>
+
+        {/* Section 8: Canvas Zoom Controls */}
+        {onZoomIn && onZoomOut && (
+          <div className="flex items-center gap-0.5 bg-white p-1 rounded-xl border border-slate-200 shadow-2xs shrink-0">
+            <button
+              onClick={onZoomOut}
+              className="p-1 rounded text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              title="Zoom Out (-)"
+            >
+              <ZoomOut className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={onResetZoom}
+              className="px-1.5 py-0.5 rounded text-[11px] font-mono font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              title="Reset Zoom to 100%"
+            >
+              {Math.round((zoom || 1) * 100)}%
+            </button>
+            <button
+              onClick={onZoomIn}
+              className="p-1 rounded text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              title="Zoom In (+)"
+            >
+              <ZoomIn className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Hidden File Inputs for Image, PDF, and JSON */}
