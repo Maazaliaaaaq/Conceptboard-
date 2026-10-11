@@ -28,6 +28,7 @@ import {
   Layers,
   Copy,
   Check,
+  KeyRound,
 } from 'lucide-react';
 import { ToolType } from '../types/board';
 import { GithubModal } from './GithubModal';
@@ -66,6 +67,7 @@ export interface TopBarProps {
   onResetZoom?: () => void;
   onOpenBoardManager?: () => void;
   quotaExceeded?: boolean;
+  onOpenTeacherLogin?: () => void;
 }
 
 const PRIMARY_SWATCHES = [
@@ -136,6 +138,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   onResetZoom,
   onOpenBoardManager,
   quotaExceeded,
+  onOpenTeacherLogin,
 }) => {
   const [showFileMenu, setShowFileMenu] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -316,6 +319,17 @@ export const TopBar: React.FC<TopBarProps> = ({
               ({currentUser.role === 'teacher' ? 'Host' : 'Student'})
             </span>
           </button>
+
+          {currentUser.role !== 'teacher' && onOpenTeacherLogin && (
+            <button
+              onClick={onOpenTeacherLogin}
+              className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="Teacher Login (ID: admin, Password: 4321)"
+            >
+              <KeyRound className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Teacher Login</span>
+            </button>
+          )}
 
           {currentUser.role === 'teacher' && (
             <button

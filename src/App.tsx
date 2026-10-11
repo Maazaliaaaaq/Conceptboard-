@@ -5,6 +5,7 @@ import { LiveCursors } from './components/LiveCursors';
 import { ShareModal } from './components/ShareModal';
 import { FirebaseSetupModal } from './components/FirebaseSetupModal';
 import { UserModal } from './components/UserModal';
+import { TeacherLoginModal } from './components/TeacherLoginModal';
 import { BoardManagerModal } from './components/BoardManagerModal';
 import { ToastContainer, ToastMessage } from './components/Toast';
 import {
@@ -147,6 +148,7 @@ export default function App() {
   const [isFirebaseOpen, setIsFirebaseOpen] = useState(false);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [isBoardManagerOpen, setIsBoardManagerOpen] = useState(false);
+  const [isTeacherLoginOpen, setIsTeacherLoginOpen] = useState(false);
 
   const handleSwitchRoom = (newRoomId: string) => {
     setRoomId(newRoomId.trim().toUpperCase());
@@ -664,6 +666,7 @@ export default function App() {
         onResetZoom={handleResetZoom}
         onOpenBoardManager={() => setIsBoardManagerOpen(true)}
         quotaExceeded={quotaExceeded}
+        onOpenTeacherLogin={() => setIsTeacherLoginOpen(true)}
       />
 
 
@@ -713,6 +716,22 @@ export default function App() {
         isOpen={isFirebaseOpen}
         onClose={() => setIsFirebaseOpen(false)}
         onToast={addToast}
+      />
+
+      {/* Teacher Login Modal */}
+      <TeacherLoginModal
+        isOpen={isTeacherLoginOpen}
+        onClose={() => setIsTeacherLoginOpen(false)}
+        onLoginSuccess={() => {
+          const updated = {
+            ...currentUser,
+            role: 'teacher' as const,
+            name: currentUser.name.includes('Student') ? 'Teacher (Admin)' : currentUser.name,
+          };
+          setCurrentUser(updated);
+          localStorage.setItem('conceptboard_user', JSON.stringify(updated));
+          addToast('Teacher login successful! Welcome back, Admin.', 'success');
+        }}
       />
 
       {/* User Profile Modal */}
