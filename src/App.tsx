@@ -7,8 +7,6 @@ import { FirebaseSetupModal } from './components/FirebaseSetupModal';
 import { UserModal } from './components/UserModal';
 import { BoardManagerModal } from './components/BoardManagerModal';
 import { ToastContainer, ToastMessage } from './components/Toast';
-import { CreativeToolbar } from './components/CreativeToolbar';
-import { AlertTriangle, ExternalLink, X } from 'lucide-react';
 import {
   BoardObject,
   ToolType,
@@ -592,37 +590,7 @@ export default function App() {
 
   return (
     <div className="relative w-screen h-screen overflow-hidden flex flex-col bg-slate-50 text-slate-800">
-      {/* Firestore Quota Exceeded Friendly Banner */}
-      {quotaExceeded && !dismissedQuotaBanner && (
-        <div className="bg-amber-500 text-slate-950 px-4 py-2 text-xs font-medium flex items-center justify-between gap-3 shadow-md z-50 shrink-0 border-b border-amber-600">
-          <div className="flex items-center gap-2 overflow-hidden text-ellipsis">
-            <AlertTriangle className="w-4 h-4 shrink-0 text-slate-950" />
-            <span>
-              <strong>Firestore Daily Free Write Quota Exceeded:</strong> Switched to local offline & multi-tab collaboration mode. All drawing, sticky notes, tools, and PNG/JSON exports remain fully active. Free quota resets tomorrow.
-            </span>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <a
-              href="https://console.firebase.google.com/project/gen-lang-client-0670794076/firestore/databases/ai-studio-conceptboardcoll-cdd84032-8dd9-48ec-903e-d280c218114e/data?openUpgradeDialog=true"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-2.5 py-1 bg-slate-900 text-white rounded-lg font-semibold hover:bg-slate-800 transition-colors flex items-center gap-1 text-[11px]"
-            >
-              <span>View Quota / Upgrade</span>
-              <ExternalLink className="w-3 h-3" />
-            </a>
-            <button
-              onClick={() => setDismissedQuotaBanner(true)}
-              className="p-1 hover:bg-amber-600 rounded text-slate-950 transition-colors cursor-pointer"
-              title="Dismiss notice"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Top Toolbar */}
+      {/* Top Toolbar: All tools and options visible directly on screen */}
       <TopBar
         activeTool={activeTool}
         onSelectTool={setActiveTool}
@@ -640,7 +608,6 @@ export default function App() {
         onRedo={handleRedo}
         onClearBoard={handleClearBoard}
         onOpenShare={() => setIsShareOpen(true)}
-        onOpenFirebase={() => setIsFirebaseOpen(true)}
         onOpenUserProfile={() => setIsUserModalOpen(true)}
         onExportPNG={handleExportPNG}
         onExportJSON={handleExportJSON}
@@ -650,7 +617,6 @@ export default function App() {
         onDownloadSingleFile={handleDownloadSingleFile}
         currentUser={currentUser}
         onlineCount={onlineCount}
-        isFirebaseActive={isFirebaseConnected()}
         roomId={roomId}
         isReadOnly={isReadOnly}
         zoom={canvasZoom}
@@ -658,51 +624,12 @@ export default function App() {
         onZoomOut={handleZoomOut}
         onResetZoom={handleResetZoom}
         onOpenBoardManager={() => setIsBoardManagerOpen(true)}
-        webRtcStatus={webRtcStatus}
-        peerCount={peerCount}
+        showCursorReticle={showCursorReticle}
+        onToggleCursorReticle={() => setShowCursorReticle((prev) => !prev)}
       />
 
-      {/* Main Canvas Area */}
-      <div className="relative flex-1 w-full h-[calc(100vh-3.5rem)] overflow-hidden">
-        {/* Always-Visible Floating Creative Tools Deck */}
-        <CreativeToolbar
-          activeTool={activeTool}
-          onSelectTool={setActiveTool}
-          currentColor={currentColor}
-          onSelectColor={setCurrentColor}
-          strokeWidth={strokeWidth}
-          onChangeStrokeWidth={setStrokeWidth}
-          fillShape={fillShape}
-          onToggleFillShape={() => setFillShape(!fillShape)}
-          stickyColor={stickyColor}
-          onSelectStickyColor={setStickyColor}
-          canUndo={undoStack.length > 0}
-          canRedo={redoStack.length > 0}
-          onUndo={handleUndo}
-          onRedo={handleRedo}
-          onUploadImage={handleUploadImage}
-          onUploadPDF={handleUploadPDF}
-          showCursorPreview={showCursorReticle}
-          onToggleCursorPreview={() => setShowCursorReticle((prev) => !prev)}
-          zoom={canvasZoom}
-          onZoomIn={handleZoomIn}
-          onZoomOut={handleZoomOut}
-          onResetZoom={handleResetZoom}
-          isSimulatingStudent={isSimulatingStudent}
-          onSimulateStudentCursor={() => {
-            setIsSimulatingStudent((prev) => {
-              const next = !prev;
-              addToast(
-                next
-                  ? 'Simulated student (Sarah · UK) joined! Watch their live cursor move.'
-                  : 'Simulated student left.',
-                'info'
-              );
-              return next;
-            });
-          }}
-        />
-
+      {/* Main Canvas Area: Clean, Spacious, & Unobstructed */}
+      <div className="relative flex-1 w-full h-full overflow-hidden">
         <Canvas
           ref={canvasRef}
           objects={objects}
