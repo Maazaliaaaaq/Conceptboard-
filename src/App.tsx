@@ -71,22 +71,31 @@ export default function App() {
     role: 'teacher' | 'student';
     color: string;
   }>(() => {
-    const hasRoomParam = typeof window !== 'undefined' && window.location.search.includes('room=');
+    const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+    const roomParam = searchParams.get('room');
+    const isTeacherParam = searchParams.get('role') === 'teacher' || searchParams.get('teacher') === 'true';
+    const hasRoomParam = Boolean(roomParam);
+
     try {
       const cached = localStorage.getItem('conceptboard_user');
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (hasRoomParam && parsed.role === 'teacher') {
+        if (hasRoomParam && !isTeacherParam && parsed.role === 'teacher') {
           parsed.role = 'student';
           parsed.name = parsed.name.includes('Teacher') ? 'Student' : parsed.name;
+        } else if (isTeacherParam) {
+          parsed.role = 'teacher';
+          if (!parsed.name || parsed.name.includes('Student')) {
+            parsed.name = 'Teacher (Colleague)';
+          }
         }
         return parsed;
       }
     } catch {}
     return {
       id: `user_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      name: hasRoomParam ? 'Student' : 'Teacher (Host)',
-      role: hasRoomParam ? 'student' : 'teacher',
+      name: isTeacherParam ? 'Teacher (Colleague)' : (hasRoomParam ? 'Student' : 'Teacher (Host)'),
+      role: isTeacherParam ? 'teacher' : (hasRoomParam ? 'student' : 'teacher'),
       color:
         DEFAULT_AVATAR_COLORS[
           Math.floor(Math.random() * DEFAULT_AVATAR_COLORS.length)
@@ -713,9 +722,10 @@ export default function App() {
         name={currentUser.name}
         role={currentUser.role}
         color={currentUser.color}
-        isStudentLocked={currentUser.role === 'student' || (typeof window !== 'undefined' && window.location.search.includes('room='))}
+        isStudentLocked={currentUser.role === 'student' || (typeof window !== 'undefined' && window.location.search.includes('room=') && !window.location.search.includes('role=teacher') && !window.location.search.includes('teacher=true'))}
         onSave={(name, role, color) => {
-          const isLocked = currentUser.role === 'student' || (typeof window !== 'undefined' && window.location.search.includes('room='));
+          const isTeacherParam = typeof window !== 'undefined' && (window.location.search.includes('role=teacher') || window.location.search.includes('teacher=true'));
+          const isLocked = currentUser.role === 'student' || (typeof window !== 'undefined' && window.location.search.includes('room=') && !isTeacherParam);
           const finalRole = isLocked ? 'student' : role;
           setCurrentUser({ ...currentUser, name, role: finalRole, color });
           addToast('Profile updated!', 'success');

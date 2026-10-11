@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Copy, Check, Users, Shield, Link2, KeyRound } from 'lucide-react';
+import { X, Copy, Check, Users, Shield, Link2, KeyRound, GraduationCap, Award } from 'lucide-react';
 import { BoardRoomConfig } from '../types/board';
 
 interface ShareModalProps {
@@ -21,22 +21,31 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   onUpdatePermission,
   onToast,
 }) => {
-  const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedStudentLink, setCopiedStudentLink] = useState(false);
+  const [copiedTeacherLink, setCopiedTeacherLink] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
 
   if (!isOpen) return null;
 
-  const shareUrl = typeof window !== 'undefined'
+  const studentUrl = typeof window !== 'undefined'
     ? `${window.location.origin}${window.location.pathname}?room=${roomId}`
     : `https://whiteboard.app/?room=${roomId}`;
 
-  const copyToClipboard = async (text: string, type: 'link' | 'code') => {
+  const teacherUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}${window.location.pathname}?room=${roomId}&role=teacher`
+    : `https://whiteboard.app/?room=${roomId}&role=teacher`;
+
+  const copyToClipboard = async (text: string, type: 'student_link' | 'teacher_link' | 'code') => {
     try {
       await navigator.clipboard.writeText(text);
-      if (type === 'link') {
-        setCopiedLink(true);
-        setTimeout(() => setCopiedLink(false), 2000);
-        onToast('Shareable link copied to clipboard!', 'success');
+      if (type === 'student_link') {
+        setCopiedStudentLink(true);
+        setTimeout(() => setCopiedStudentLink(false), 2000);
+        onToast('Student link copied to clipboard!', 'success');
+      } else if (type === 'teacher_link') {
+        setCopiedTeacherLink(true);
+        setTimeout(() => setCopiedTeacherLink(false), 2000);
+        onToast('Teacher link copied to clipboard!', 'success');
       } else {
         setCopiedCode(true);
         setTimeout(() => setCopiedCode(false), 2000);
@@ -57,39 +66,67 @@ export const ShareModal: React.FC<ShareModalProps> = ({
             </div>
             <div>
               <h2 className="text-base font-semibold text-slate-900">Share Whiteboard</h2>
-              <p className="text-xs text-slate-500">Invite students and collaborators</p>
+              <p className="text-xs text-slate-500">Different links for students and teachers</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+            className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="p-6 space-y-5">
-          {/* Share Link */}
+        <div className="p-6 space-y-5 max-h-[80vh] overflow-y-auto">
+          {/* Student Share Link */}
           <div>
             <label className="block text-xs font-medium text-slate-700 mb-1.5 flex items-center gap-1.5">
-              <Link2 className="w-3.5 h-3.5 text-slate-500" />
-              Direct Shareable Link
+              <GraduationCap className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Student Join Link</span>
+              <span className="text-[10px] text-slate-400 font-normal">(For students / participants)</span>
             </label>
             <div className="flex items-center gap-2">
               <input
                 type="text"
                 readOnly
-                value={shareUrl}
+                value={studentUrl}
                 className="w-full text-xs font-mono bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-700 select-all focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
               <button
-                onClick={() => copyToClipboard(shareUrl, 'link')}
-                className="px-3.5 py-2 text-xs font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors flex items-center gap-1.5 shrink-0"
+                onClick={() => copyToClipboard(studentUrl, 'student_link')}
+                className="px-3.5 py-2 text-xs font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer"
               >
-                {copiedLink ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>{copiedLink ? 'Copied' : 'Copy'}</span>
+                {copiedStudentLink ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedStudentLink ? 'Copied' : 'Copy'}</span>
               </button>
             </div>
+          </div>
+
+          {/* Teacher Share Link */}
+          <div>
+            <label className="block text-xs font-medium text-slate-700 mb-1.5 flex items-center gap-1.5">
+              <Award className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Teacher / Co-Host Link</span>
+              <span className="text-[10px] text-emerald-600 font-medium">(For other teachers)</span>
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                readOnly
+                value={teacherUrl}
+                className="w-full text-xs font-mono bg-emerald-50/50 border border-emerald-200 rounded-lg px-3 py-2 text-emerald-900 select-all focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              />
+              <button
+                onClick={() => copyToClipboard(teacherUrl, 'teacher_link')}
+                className="px-3.5 py-2 text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer"
+              >
+                {copiedTeacherLink ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedTeacherLink ? 'Copied' : 'Copy'}</span>
+              </button>
+            </div>
+            <p className="text-[11px] text-slate-500 mt-1">
+              Share this link with other teachers so they join with full teacher privileges.
+            </p>
           </div>
 
           {/* Room Code */}
@@ -103,7 +140,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
             </div>
             <button
               onClick={() => copyToClipboard(roomId, 'code')}
-              className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-1"
+              className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-1 cursor-pointer"
             >
               {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-slate-500" />}
               <span>{copiedCode ? 'Copied' : 'Copy'}</span>
@@ -132,7 +169,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                   config.permissionMode === 'edit'
                     ? 'border-indigo-600 bg-indigo-50/70 text-indigo-900 font-semibold shadow-xs'
                     : 'border-slate-200 text-slate-600 hover:border-slate-300'
-                } ${!isTeacher ? 'cursor-not-allowed opacity-80' : ''}`}
+                } ${!isTeacher ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'}`}
               >
                 <div className="flex items-center justify-between mb-0.5">
                   <span>Everyone Can Edit</span>
@@ -148,30 +185,16 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                   config.permissionMode === 'view_only'
                     ? 'border-indigo-600 bg-indigo-50/70 text-indigo-900 font-semibold shadow-xs'
                     : 'border-slate-200 text-slate-600 hover:border-slate-300'
-                } ${!isTeacher ? 'cursor-not-allowed opacity-80' : ''}`}
+                } ${!isTeacher ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'}`}
               >
                 <div className="flex items-center justify-between mb-0.5">
                   <span>View Only</span>
                   {config.permissionMode === 'view_only' && <Check className="w-3.5 h-3.5 text-indigo-600" />}
                 </div>
-                <p className="text-[10px] text-slate-500 font-normal">Students watch live teacher board</p>
+                <p className="text-[10px] text-slate-500 font-normal">Students can only watch and chat</p>
               </button>
             </div>
           </div>
-
-          {/* Performance note for international teaching */}
-          <div className="text-[11px] text-slate-500 leading-relaxed bg-amber-50/60 border border-amber-100 rounded-lg p-2.5">
-            🌍 <span className="font-medium text-amber-900">High-speed global routing:</span> Optimized for cross-continental links between Pakistan / Saudi Arabia and UK / Australia with instant local rendering and batched sync.
-          </div>
-        </div>
-
-        <div className="px-6 py-3 bg-slate-50 border-t border-slate-100 flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-xs font-medium bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors"
-          >
-            Done
-          </button>
         </div>
       </div>
     </div>

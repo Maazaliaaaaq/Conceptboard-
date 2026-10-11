@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Layers, ArrowRight, Trash2, Edit2, Check, Share2, HelpCircle, Sparkles, ExternalLink } from 'lucide-react';
+import { X, Plus, Layers, ArrowRight, Trash2, Edit2, Check, Share2, HelpCircle, Sparkles, ExternalLink, Award } from 'lucide-react';
 
 export interface BoardRoomMeta {
   id: string;
@@ -406,6 +406,18 @@ export const BoardManagerModal: React.FC<BoardManagerModalProps> = ({
                       title="Copy student link"
                     >
                       <Share2 className="w-3.5 h-3.5" />
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        const url = `${window.location.origin}${window.location.pathname}?room=${b.id}&role=teacher`;
+                        navigator.clipboard.writeText(url);
+                        onToast(`Copied teacher link for ${b.name}!`, 'success');
+                      }}
+                      className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg cursor-pointer"
+                      title="Copy teacher link (for other teachers)"
+                    >
+                      <Award className="w-3.5 h-3.5" />
                     </button>
 
                     <a
