@@ -851,7 +851,7 @@ const CanvasComponent = forwardRef<CanvasRefHandle, CanvasProps>(({
     if (activePointers.current.size >= 2) {
       isPinchActive.current = true;
       setIsPointerDown(false);
-      setCurrentStroke([]);
+      currentStrokeRef.current = [];
       setShapePreview(null);
       setIsDraggingObject(false);
 
