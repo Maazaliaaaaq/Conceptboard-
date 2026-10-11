@@ -81,6 +81,11 @@ function cleanFirestoreData(data: any): any {
 let firebaseApp: FirebaseApp | null = null;
 let firestoreDb: Firestore | null = null;
 let quotaExceededState = false;
+try {
+  if (typeof window !== 'undefined' && localStorage.getItem('conceptboard_quota_exceeded') === 'true') {
+    quotaExceededState = true;
+  }
+} catch {}
 const quotaListeners = new Set<(exceeded: boolean) => void>();
 
 export function isQuotaError(error: unknown): boolean {
@@ -116,6 +121,9 @@ export function notifyQuotaExceeded() {
   if (!quotaExceededState) {
     quotaExceededState = true;
     firestoreDb = null;
+    try {
+      localStorage.setItem('conceptboard_quota_exceeded', 'true');
+    } catch {}
     quotaListeners.forEach((cb) => {
       try {
         cb(true);
@@ -169,6 +177,9 @@ export function saveFirebaseCredentials(creds: FirebaseCredentials | null) {
 }
 
 export function initFirebase(creds?: FirebaseCredentials | null): boolean {
+  if (quotaExceededState) {
+    return false;
+  }
   try {
     const config = creds || getStoredFirebaseCredentials() || defaultAppletConfig;
     if (!config || !config.apiKey || !config.projectId) {
@@ -190,6 +201,9 @@ export function initFirebase(creds?: FirebaseCredentials | null): boolean {
 
     return true;
   } catch (err) {
+    if (isQuotaError(err)) {
+      notifyQuotaExceeded();
+    }
     console.warn('Firebase init warning:', err);
     return false;
   }
