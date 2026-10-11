@@ -601,6 +601,20 @@ export default function App() {
 
   return (
     <div className="relative w-screen h-screen overflow-hidden flex flex-col bg-slate-50 text-slate-800">
+      {quotaExceeded && !dismissedQuotaBanner && (
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center justify-between text-xs text-amber-900 z-50">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold">⚡ Notice:</span>
+            <span>Firestore daily free quota limit reached. Seamlessly running in high-speed local & multi-tab sync mode! All drawings, boards, and student collaboration work locally.</span>
+          </div>
+          <button
+            onClick={() => setDismissedQuotaBanner(true)}
+            className="text-amber-700 hover:text-amber-900 font-bold px-2 py-0.5 rounded hover:bg-amber-100"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
       {/* Top Toolbar: All tools and options visible directly on screen */}
       <TopBar
         activeTool={activeTool}

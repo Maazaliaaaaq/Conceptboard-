@@ -115,6 +115,7 @@ export function subscribeToQuotaExceeded(callback: (exceeded: boolean) => void):
 export function notifyQuotaExceeded() {
   if (!quotaExceededState) {
     quotaExceededState = true;
+    firestoreDb = null;
     quotaListeners.forEach((cb) => {
       try {
         cb(true);
