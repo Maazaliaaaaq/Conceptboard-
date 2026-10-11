@@ -166,7 +166,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             <Copy className="w-3 h-3 text-slate-400" />
           </button>
 
-          {onOpenBoardManager && (
+          {onOpenBoardManager && currentUser.role === 'teacher' && (
             <button
               onClick={onOpenBoardManager}
               className="px-2.5 py-1 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"

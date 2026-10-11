@@ -682,21 +682,25 @@ export default function App() {
         name={currentUser.name}
         role={currentUser.role}
         color={currentUser.color}
+        isStudentLocked={currentUser.role === 'student'}
         onSave={(name, role, color) => {
-          setCurrentUser({ ...currentUser, name, role, color });
+          const finalRole = currentUser.role === 'student' ? 'student' : role;
+          setCurrentUser({ ...currentUser, name, role: finalRole, color });
           addToast('Profile updated!', 'success');
         }}
       />
 
       {/* Board Manager Modal */}
-      <BoardManagerModal
-        isOpen={isBoardManagerOpen}
-        onClose={() => setIsBoardManagerOpen(false)}
-        currentRoomId={roomId}
-        onSwitchRoom={handleSwitchRoom}
-        onToast={addToast}
-        isTeacher={currentUser.role === 'teacher'}
-      />
+      {currentUser.role === 'teacher' && (
+        <BoardManagerModal
+          isOpen={isBoardManagerOpen}
+          onClose={() => setIsBoardManagerOpen(false)}
+          currentRoomId={roomId}
+          onSwitchRoom={handleSwitchRoom}
+          onToast={addToast}
+          isTeacher={currentUser.role === 'teacher'}
+        />
+      )}
 
       {/* Toast Notifications */}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />

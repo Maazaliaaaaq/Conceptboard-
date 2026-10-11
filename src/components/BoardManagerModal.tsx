@@ -129,12 +129,24 @@ export const BoardManagerModal: React.FC<BoardManagerModalProps> = ({
   };
 
   const handleDeleteBoard = (id: string, name: string) => {
-    if (boards.length <= 1) {
-      onToast('You must keep at least one board.', 'error');
-      return;
-    }
     if (window.confirm(`Delete "${name}" from your board manager?`)) {
-      const next = boards.filter((b) => b.id !== id);
+      let next = boards.filter((b) => b.id !== id);
+      if (next.length === 0) {
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        let newId = '';
+        for (let i = 0; i < 6; i++) {
+          newId += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        next = [
+          {
+            id: newId,
+            name: 'Main Classroom Board',
+            description: 'Default board',
+            createdAt: Date.now(),
+            lastUsedAt: Date.now(),
+          },
+        ];
+      }
       saveBoards(next);
       onToast(`Deleted "${name}"`, 'info');
       if (id === currentRoomId && next.length > 0) {
@@ -393,15 +405,13 @@ export const BoardManagerModal: React.FC<BoardManagerModalProps> = ({
                       </button>
                     )}
 
-                    {boards.length > 1 && !isCurrent && (
-                      <button
-                        onClick={() => handleDeleteBoard(b.id, b.name)}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer ml-1"
-                        title="Delete board"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
+                    <button
+                      onClick={() => handleDeleteBoard(b.id, b.name)}
+                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer ml-1"
+                      title="Delete board"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
               );

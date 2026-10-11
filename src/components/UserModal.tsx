@@ -8,6 +8,7 @@ interface UserModalProps {
   role: 'teacher' | 'student';
   color: string;
   onSave: (name: string, role: 'teacher' | 'student', color: string) => void;
+  isStudentLocked?: boolean;
 }
 
 const AVATAR_COLORS = [
@@ -28,6 +29,7 @@ export const UserModal: React.FC<UserModalProps> = ({
   role: initialRole,
   color: initialColor,
   onSave,
+  isStudentLocked,
 }) => {
   const [name, setName] = useState(initialName);
   const [role, setRole] = useState<'teacher' | 'student'>(initialRole);
@@ -38,7 +40,8 @@ export const UserModal: React.FC<UserModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    onSave(name.trim(), role, color);
+    const finalRole = isStudentLocked ? 'student' : role;
+    onSave(name.trim(), finalRole, color);
     onClose();
   };
 
@@ -80,24 +83,29 @@ export const UserModal: React.FC<UserModalProps> = ({
 
           <div>
             <label className="block text-xs font-medium text-slate-700 mb-1">
-              Your Role
+              Your Role {isStudentLocked && <span className="text-[10px] text-indigo-600 font-semibold">(Locked as Student)</span>}
             </label>
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => setRole('teacher')}
+                onClick={() => !isStudentLocked && setRole('teacher')}
+                disabled={isStudentLocked}
                 className={`px-3 py-2 text-xs font-medium rounded-lg border flex items-center justify-center gap-1.5 transition-all ${
-                  role === 'teacher'
+                  isStudentLocked
+                    ? 'opacity-40 cursor-not-allowed border-slate-200 text-slate-400 bg-slate-50'
+                    : role === 'teacher'
                     ? 'border-indigo-600 bg-indigo-50 text-indigo-900 font-semibold'
                     : 'border-slate-200 text-slate-600 hover:border-slate-300'
                 }`}
+                title={isStudentLocked ? 'Students cannot switch to teacher role' : ''}
               >
                 <School className="w-4 h-4 text-indigo-600" />
                 Teacher (Host)
               </button>
               <button
                 type="button"
-                onClick={() => setRole('student')}
+                onClick={() => !isStudentLocked && setRole('student')}
+                disabled={isStudentLocked}
                 className={`px-3 py-2 text-xs font-medium rounded-lg border flex items-center justify-center gap-1.5 transition-all ${
                   role === 'student'
                     ? 'border-indigo-600 bg-indigo-50 text-indigo-900 font-semibold'
