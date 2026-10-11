@@ -157,9 +157,15 @@ export const TopBar: React.FC<TopBarProps> = ({
           </div>
 
           <button
-            onClick={onOpenShare}
+            onClick={() => {
+              if (currentUser.role === 'teacher') {
+                onOpenShare();
+              } else {
+                navigator.clipboard.writeText(roomId);
+              }
+            }}
             className="px-2.5 py-1 bg-white hover:bg-slate-50 rounded-lg border border-slate-200 text-slate-700 text-xs font-mono font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
-            title="Click to copy link or share with students"
+            title={currentUser.role === 'teacher' ? "Click to copy link or share with students" : "Room code (click to copy)"}
           >
             <span className="text-[10px] text-slate-400 font-sans">Room:</span>
             <span className="font-bold text-indigo-700">{roomId}</span>
@@ -250,17 +256,21 @@ export const TopBar: React.FC<TopBarProps> = ({
                       <p className="text-[10px] text-slate-500 font-normal">Push to repo or view setup</p>
                     </div>
                   </button>
-                  <div className="my-1 border-t border-slate-100" />
-                  <button
-                    onClick={() => {
-                      onClearBoard();
-                      setShowFileMenu(false);
-                    }}
-                    className="w-full text-left px-3.5 py-2 hover:bg-rose-50 text-rose-600 font-medium flex items-center gap-2 cursor-pointer"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Clear Entire Board</span>
-                  </button>
+                  {currentUser.role === 'teacher' && (
+                    <>
+                      <div className="my-1 border-t border-slate-100" />
+                      <button
+                        onClick={() => {
+                          onClearBoard();
+                          setShowFileMenu(false);
+                        }}
+                        className="w-full text-left px-3.5 py-2 hover:bg-rose-50 text-rose-600 font-medium flex items-center gap-2 cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Clear Entire Board</span>
+                      </button>
+                    </>
+                  )}
                 </div>
               </>
             )}
@@ -298,14 +308,16 @@ export const TopBar: React.FC<TopBarProps> = ({
             </span>
           </button>
 
-          <button
-            onClick={onOpenShare}
-            className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
-            title="Invite students with room link or code"
-          >
-            <Share2 className="w-3.5 h-3.5" />
-            <span>Share</span>
-          </button>
+          {currentUser.role === 'teacher' && (
+            <button
+              onClick={onOpenShare}
+              className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="Invite students with room link or code"
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              <span>Share</span>
+            </button>
+          )}
         </div>
       </div>
 

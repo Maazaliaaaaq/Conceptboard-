@@ -387,6 +387,10 @@ export default function App() {
 
   // Clear board
   const handleClearBoard = () => {
+    if (currentUser.role === 'student') {
+      addToast('Students are not allowed to clear the entire board.', 'error');
+      return;
+    }
     if (window.confirm('Are you sure you want to clear all objects on this board?')) {
       clearBoard(roomId);
       setObjects({});
