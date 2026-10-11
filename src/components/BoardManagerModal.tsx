@@ -111,6 +111,28 @@ export const BoardManagerModal: React.FC<BoardManagerModalProps> = ({
     onClose();
   };
 
+  const handleInstantNewBoard = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let newId = '';
+    for (let i = 0; i < 6; i++) {
+      newId += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    const name = `Room ${newId}`;
+    const newBoard: BoardRoomMeta = {
+      id: newId,
+      name,
+      description: 'Newly created classroom session',
+      createdAt: Date.now(),
+      lastUsedAt: Date.now(),
+    };
+
+    const next = [...boards, newBoard];
+    saveBoards(next);
+    onToast(`Created new room "${newId}"! Switching now...`, 'success');
+    onSwitchRoom(newId);
+    onClose();
+  };
+
   const handleQuickSetup3Students = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     const genId = () => {
@@ -204,11 +226,20 @@ export const BoardManagerModal: React.FC<BoardManagerModalProps> = ({
 
           {/* Create new board trigger / form */}
           {!isCreating ? (
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="font-semibold text-slate-800 text-xs">
                 Your Classroom Boards ({boards.length})
               </span>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleInstantNewBoard}
+                  className="px-3 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  title="Instantly create and switch to a brand new board"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>⚡ Instant New Board</span>
+                </button>
                 <button
                   type="button"
                   onClick={handleQuickSetup3Students}
@@ -224,7 +255,7 @@ export const BoardManagerModal: React.FC<BoardManagerModalProps> = ({
                   className="px-3 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  <span>+ New Board</span>
+                  <span>Custom New</span>
                 </button>
               </div>
             </div>

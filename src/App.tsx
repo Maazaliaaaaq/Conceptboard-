@@ -71,15 +71,22 @@ export default function App() {
     role: 'teacher' | 'student';
     color: string;
   }>(() => {
+    const hasRoomParam = typeof window !== 'undefined' && window.location.search.includes('room=');
     try {
       const cached = localStorage.getItem('conceptboard_user');
-      if (cached) return JSON.parse(cached);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (hasRoomParam && parsed.role === 'teacher') {
+          parsed.role = 'student';
+          parsed.name = parsed.name.includes('Teacher') ? 'Student' : parsed.name;
+        }
+        return parsed;
+      }
     } catch {}
-    const isRoomCreator = !window.location.search.includes('room=');
     return {
       id: `user_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      name: isRoomCreator ? 'Teacher (Host)' : 'Student',
-      role: isRoomCreator ? 'teacher' : 'student',
+      name: hasRoomParam ? 'Student' : 'Teacher (Host)',
+      role: hasRoomParam ? 'student' : 'teacher',
       color:
         DEFAULT_AVATAR_COLORS[
           Math.floor(Math.random() * DEFAULT_AVATAR_COLORS.length)
@@ -686,9 +693,10 @@ export default function App() {
         name={currentUser.name}
         role={currentUser.role}
         color={currentUser.color}
-        isStudentLocked={currentUser.role === 'student'}
+        isStudentLocked={currentUser.role === 'student' || (typeof window !== 'undefined' && window.location.search.includes('room='))}
         onSave={(name, role, color) => {
-          const finalRole = currentUser.role === 'student' ? 'student' : role;
+          const isLocked = currentUser.role === 'student' || (typeof window !== 'undefined' && window.location.search.includes('room='));
+          const finalRole = isLocked ? 'student' : role;
           setCurrentUser({ ...currentUser, name, role: finalRole, color });
           addToast('Profile updated!', 'success');
         }}

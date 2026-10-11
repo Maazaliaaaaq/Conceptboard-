@@ -32,7 +32,7 @@ export const UserModal: React.FC<UserModalProps> = ({
   isStudentLocked,
 }) => {
   const [name, setName] = useState(initialName);
-  const [role, setRole] = useState<'teacher' | 'student'>(initialRole);
+  const [role, setRole] = useState<'teacher' | 'student'>(isStudentLocked ? 'student' : initialRole);
   const [color, setColor] = useState(initialColor);
 
   if (!isOpen) return null;
