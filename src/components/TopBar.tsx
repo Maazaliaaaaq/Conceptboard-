@@ -241,35 +241,35 @@ export const TopBar: React.FC<TopBarProps> = ({
                     <Upload className="w-3.5 h-3.5 text-blue-600" />
                     <span>Open / Load Board (.json)</span>
                   </button>
-                  <div className="my-1 border-t border-slate-100" />
-                  <button
-                    onClick={() => {
-                      onDownloadSingleFile();
-                      setShowFileMenu(false);
-                    }}
-                    className="w-full text-left px-3.5 py-2 hover:bg-amber-50/70 flex items-center gap-2 text-amber-900 font-medium cursor-pointer"
-                  >
-                    <FileCode className="w-3.5 h-3.5 text-amber-600" />
-                    <div>
-                      <span>Download Standalone .html</span>
-                      <p className="text-[10px] text-amber-700 font-normal">Runs 100% offline in browser</p>
-                    </div>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowGithubModal(true);
-                      setShowFileMenu(false);
-                    }}
-                    className="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-800 font-medium cursor-pointer"
-                  >
-                    <Github className="w-3.5 h-3.5 text-slate-800" />
-                    <div>
-                      <span>GitHub / Source Code</span>
-                      <p className="text-[10px] text-slate-500 font-normal">Push to repo or view setup</p>
-                    </div>
-                  </button>
                   {currentUser.role === 'teacher' && (
                     <>
+                      <div className="my-1 border-t border-slate-100" />
+                      <button
+                        onClick={() => {
+                          onDownloadSingleFile();
+                          setShowFileMenu(false);
+                        }}
+                        className="w-full text-left px-3.5 py-2 hover:bg-amber-50/70 flex items-center gap-2 text-amber-900 font-medium cursor-pointer"
+                      >
+                        <FileCode className="w-3.5 h-3.5 text-amber-600" />
+                        <div>
+                          <span>Download Standalone .html</span>
+                          <p className="text-[10px] text-amber-700 font-normal">Runs 100% offline in browser</p>
+                        </div>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowGithubModal(true);
+                          setShowFileMenu(false);
+                        }}
+                        className="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-800 font-medium cursor-pointer"
+                      >
+                        <Github className="w-3.5 h-3.5 text-slate-800" />
+                        <div>
+                          <span>GitHub / Source Code</span>
+                          <p className="text-[10px] text-slate-500 font-normal">Push to repo or view setup</p>
+                        </div>
+                      </button>
                       <div className="my-1 border-t border-slate-100" />
                       <button
                         onClick={() => {
