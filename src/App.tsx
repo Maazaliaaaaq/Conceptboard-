@@ -81,10 +81,7 @@ export default function App() {
       const cached = localStorage.getItem('conceptboard_user');
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (hasRoomParam && !isTeacherParam && parsed.role === 'teacher') {
-          parsed.role = 'student';
-          parsed.name = parsed.name.includes('Teacher') ? 'Student' : parsed.name;
-        } else if (isTeacherParam) {
+        if (isTeacherParam) {
           parsed.role = 'teacher';
           if (!parsed.name || parsed.name.includes('Student')) {
             parsed.name = 'Teacher (Colleague)';
